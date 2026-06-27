@@ -24,10 +24,13 @@ _VIDEO_MIME_MAP = {
 
 def preview(ctx: PluginContext) -> PreviewResult:
     """使用模板渲染视频预览页面。"""
-    html = render_template("video_preview.html", {
-        "file_name": ctx.file_name,
-        "title": ctx.title or ctx.file_name,
-        "video_url": ctx.file_url,
-        "video_type": _VIDEO_MIME_MAP.get(ctx.file_type, "video/mp4"),
-    })
+    html = render_template(
+        "video_preview.html",
+        {
+            "file_name": ctx.file_name,
+            "title": ctx.title or ctx.file_name,
+            "video_url": ctx.file_url,
+            "video_type": _VIDEO_MIME_MAP.get(ctx.file_type, "video/mp4"),
+        },
+    )
     return PreviewResult.from_html(html)

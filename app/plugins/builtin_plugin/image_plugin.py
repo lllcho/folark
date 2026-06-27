@@ -17,7 +17,15 @@ logger = logging.getLogger(__name__)
 
 # 支持缩略图生成的图片类型（Pillow 可处理，SVG 除外）
 _THUMBNAIL_IMAGE_TYPES: set[str] = {
-    "jpg", "jpeg", "png", "gif", "bmp", "webp", "tiff", "tif", "ico",
+    "jpg",
+    "jpeg",
+    "png",
+    "gif",
+    "bmp",
+    "webp",
+    "tiff",
+    "tif",
+    "ico",
 }
 
 

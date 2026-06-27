@@ -62,6 +62,4 @@ def thumbnail(ctx: PluginContext) -> PILImage.Image | None:
 
 def preview(ctx: PluginContext) -> PreviewResult:
     """PDF 使用浏览器直接渲染。"""
-    return PreviewResult.from_file(
-        path=ctx.file_path, media_type="application/pdf"
-    )
+    return PreviewResult.from_file(path=ctx.file_path, media_type="application/pdf")

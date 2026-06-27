@@ -32,6 +32,7 @@ def render_template(
     if template_dir is None:
         # 从调用者的代码对象获取插件文件所在目录
         import inspect
+
         frame = inspect.currentframe()
         if frame and frame.f_back:
             template_dir = Path(frame.f_back.f_code.co_filename).parent

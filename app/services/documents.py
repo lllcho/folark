@@ -3,9 +3,8 @@
 import logging
 import uuid as uuid_mod
 from math import ceil
-from pathlib import Path
 
-from app.config import get_settings, get_category_map, resolve_file_path
+from app.config import get_category_map, get_settings, resolve_file_path
 from app.database import get_db
 from app.plugins.core import PluginContext
 
@@ -105,7 +104,7 @@ async def list_documents_service(
         FROM documents
         {join_clause}
         {where_clause}
-        ORDER BY {_SORT_OPTIONS.get(sort or 'default', _SORT_OPTIONS['default'])}
+        ORDER BY {_SORT_OPTIONS.get(sort or "default", _SORT_OPTIONS["default"])}
         LIMIT ? OFFSET ?
     """
     query_params = params + [limit, offset]
@@ -154,9 +153,7 @@ async def list_documents_service(
         # 构建 document_id -> tags 映射
         tags_map: dict[int, list[dict]] = {}
         for doc_id, tag_uuid, tag_name, tag_color in tag_rows:
-            tags_map.setdefault(doc_id, []).append(
-                {"uuid": tag_uuid, "name": tag_name, "color": tag_color}
-            )
+            tags_map.setdefault(doc_id, []).append({"uuid": tag_uuid, "name": tag_name, "color": tag_color})
         # 将标签分配到对应文档
         for doc in documents:
             doc["tags"] = tags_map.get(doc["id"], [])
@@ -243,9 +240,7 @@ async def get_document_service(uuid: str) -> dict | None:
 async def _get_doc_id_by_uuid(uuid: str) -> int:
     """根据 UUID 查询文档 ID，不存在则抛出 ValueError。"""
     db = get_db()
-    async with db.execute(
-        "SELECT id FROM documents WHERE uuid = ?", (uuid,)
-    ) as cursor:
+    async with db.execute("SELECT id FROM documents WHERE uuid = ?", (uuid,)) as cursor:
         row = await cursor.fetchone()
     if not row:
         raise ValueError("文档不存在")
@@ -281,9 +276,7 @@ async def update_document_fields(uuid: str, fields: dict) -> None:
 
     set_clause = ", ".join(f"{col} = ?" for col, _ in updates)
     params = [val for _, val in updates] + [doc_id]
-    await db.execute(
-        f"UPDATE documents SET {set_clause} WHERE id = ?", params
-    )
+    await db.execute(f"UPDATE documents SET {set_clause} WHERE id = ?", params)
     await db.commit()
     logger.info("文档字段已更新: uuid=%s, fields=%s", uuid, [c for c, _ in updates])
 
@@ -294,16 +287,12 @@ async def replace_document_tags(uuid: str, tag_uuids: list[str]) -> None:
     doc_id = await _get_doc_id_by_uuid(uuid)
 
     # 删除旧关联
-    await db.execute(
-        "DELETE FROM document_tags WHERE document_id = ?", (doc_id,)
-    )
+    await db.execute("DELETE FROM document_tags WHERE document_id = ?", (doc_id,))
 
     # 批量查询所有 tag_id
     if tag_uuids:
         placeholders = ",".join("?" * len(tag_uuids))
-        async with db.execute(
-            f"SELECT id FROM tags WHERE uuid IN ({placeholders})", tag_uuids
-        ) as tag_cursor:
+        async with db.execute(f"SELECT id FROM tags WHERE uuid IN ({placeholders})", tag_uuids) as tag_cursor:
             tag_rows = await tag_cursor.fetchall()
         tag_ids = [row[0] for row in tag_rows]
 
@@ -323,9 +312,7 @@ async def _get_or_create_tag_id(db, tag_name: str) -> int | None:
     if not tag_name:
         return None
 
-    async with db.execute(
-        "SELECT id FROM tags WHERE name = ?", (tag_name,)
-    ) as cur:
+    async with db.execute("SELECT id FROM tags WHERE name = ?", (tag_name,)) as cur:
         tag_row = await cur.fetchone()
 
     if tag_row:
@@ -336,9 +323,7 @@ async def _get_or_create_tag_id(db, tag_name: str) -> int | None:
         "INSERT INTO tags (uuid, name, color) VALUES (?, ?, ?)",
         (tag_uuid, tag_name, "#409EFF"),
     )
-    async with db.execute(
-        "SELECT id FROM tags WHERE uuid = ?", (tag_uuid,)
-    ) as cur:
+    async with db.execute("SELECT id FROM tags WHERE uuid = ?", (tag_uuid,)) as cur:
         return (await cur.fetchone())[0]
 
 
@@ -369,9 +354,7 @@ async def remove_document_tag_service(doc_uuid: str, tag_uuid: str) -> None:
     db = get_db()
     doc_id = await _get_doc_id_by_uuid(doc_uuid)
 
-    async with db.execute(
-        "SELECT id FROM tags WHERE uuid = ?", (tag_uuid,)
-    ) as cursor:
+    async with db.execute("SELECT id FROM tags WHERE uuid = ?", (tag_uuid,)) as cursor:
         tag_row = await cursor.fetchone()
 
     if not tag_row:
@@ -392,9 +375,7 @@ async def batch_delete_documents_service(uuids: list[str]) -> int:
     db = get_db()
 
     placeholders = ",".join("?" * len(uuids))
-    async with db.execute(
-        f"SELECT uuid FROM documents WHERE uuid IN ({placeholders})", uuids
-    ) as cursor:
+    async with db.execute(f"SELECT uuid FROM documents WHERE uuid IN ({placeholders})", uuids) as cursor:
         found_rows = await cursor.fetchall()
     found_uuids = [row[0] for row in found_rows]
 
@@ -463,9 +444,7 @@ async def batch_add_tags_service(uuids: list[str], tag_names: list[str]) -> int:
 
     # 查找所有匹配的文档 id
     placeholders = ",".join("?" * len(uuids))
-    async with db.execute(
-        f"SELECT id, uuid FROM documents WHERE uuid IN ({placeholders})", uuids
-    ) as cursor:
+    async with db.execute(f"SELECT id, uuid FROM documents WHERE uuid IN ({placeholders})", uuids) as cursor:
         found_rows = await cursor.fetchall()
 
     if not found_rows:
@@ -520,9 +499,22 @@ async def build_plugin_context(uuid: str) -> PluginContext:
     if not row:
         raise ValueError("文档不存在")
 
-    (doc_id, doc_uuid, file_name, file_path_str, file_type,
-     file_size, title, authors, summary, meta_data,
-     thumbnail_path, import_method, is_missing, plain_text) = row
+    (
+        doc_id,
+        doc_uuid,
+        file_name,
+        file_path_str,
+        file_type,
+        file_size,
+        title,
+        authors,
+        summary,
+        meta_data,
+        thumbnail_path,
+        import_method,
+        is_missing,
+        plain_text,
+    ) = row
 
     if is_missing:
         raise FileNotFoundError("文件已丢失")
@@ -534,10 +526,17 @@ async def build_plugin_context(uuid: str) -> PluginContext:
         raise FileNotFoundError("文件不存在于磁盘上")
 
     return PluginContext(
-        id=doc_id, uuid=doc_uuid, file_name=file_name,
-        file_path=file_path, file_type=file_type,
-        file_size=file_size, title=title, authors=authors,
-        summary=summary, meta_data=meta_data,
-        thumbnail_path=thumbnail_path, plain_text=plain_text,
+        id=doc_id,
+        uuid=doc_uuid,
+        file_name=file_name,
+        file_path=file_path,
+        file_type=file_type,
+        file_size=file_size,
+        title=title,
+        authors=authors,
+        summary=summary,
+        meta_data=meta_data,
+        thumbnail_path=thumbnail_path,
+        plain_text=plain_text,
         settings=settings,
     )

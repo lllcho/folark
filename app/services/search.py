@@ -3,9 +3,8 @@
 import logging
 import re
 from math import ceil
-from pathlib import Path
 
-from app.config import get_settings, get_category_map
+from app.config import get_category_map, get_settings
 from app.database import get_db
 from app.services.documents import format_file_size
 
@@ -38,31 +37,31 @@ async def search_documents_service(
     tag: str | None = None,
 ) -> tuple[list[dict], int, int, int]:
     """FTS5 全文检索服务函数
-    
+
     Args:
         keyword: 搜索关键词
         page: 页码 (1-based)
         limit: 每页数量
         file_type: 文件类型过滤（可选）
         tag: 标签 UUID 过滤（可选）
-        
+
     Returns:
         (匹配的文档列表, 当前页, 总页数, 总条数)
     """
     if not keyword:
         return [], 1, 1, 0
-    
+
     # 转义 FTS5 特殊字符
-    safe_keyword = re.sub(r'[*?"~]', ' ', keyword.strip())
+    safe_keyword = re.sub(r'[*?"~]', " ", keyword.strip())
     like_pattern = f"%{safe_keyword}%"
-    
+
     if not safe_keyword:
         return [], 1, 1, 0
-    
+
     # 为 FTS5 准备关键词：每个词用双引号包裹，防止特殊字符导致语法错误
     fts_words = [w for w in safe_keyword.split() if w]
-    fts_keyword = ' '.join(f'"{w}"' for w in fts_words) if fts_words else safe_keyword
-    
+    fts_keyword = " ".join(f'"{w}"' for w in fts_words) if fts_words else safe_keyword
+
     db = get_db()
 
     # 构建 file_type 过滤条件
@@ -80,7 +79,7 @@ async def search_documents_service(
     if tag:
         tag_cond = " AND d.id IN (SELECT dt2.document_id FROM document_tags dt2 JOIN tags t2 ON dt2.tag_id = t2.id WHERE t2.uuid = ?)"
         tag_params = [tag]
-    
+
     try:
         # 先查询总条数（FTS5 + 元数据 + 标签）
         count_sql = f"""
@@ -89,9 +88,9 @@ async def search_documents_service(
                 SELECT d.id FROM doc_search
                 JOIN documents d ON doc_search.rowid = d.id
                 WHERE doc_search MATCH ?{ft_cond}{tag_cond}
-                
+
                 UNION
-                
+
                 -- 元数据 LIKE 匹配
                 SELECT d.id FROM documents d
                 WHERE (d.title LIKE ?
@@ -99,9 +98,9 @@ async def search_documents_service(
                    OR d.summary LIKE ?
                    OR d.authors LIKE ?
                    OR d.meta_data LIKE ?){ft_cond}{tag_cond}
-                
+
                 UNION
-                
+
                 -- 标签名匹配
                 SELECT d.id FROM documents d
                 JOIN document_tags dt ON d.id = dt.document_id
@@ -110,18 +109,24 @@ async def search_documents_service(
             )
         """
         count_params = (
-            [fts_keyword] + ft_params + tag_params
-            + [like_pattern, like_pattern, like_pattern, like_pattern, like_pattern] + ft_params + tag_params
-            + [like_pattern] + ft_params + tag_params
+            [fts_keyword]
+            + ft_params
+            + tag_params
+            + [like_pattern, like_pattern, like_pattern, like_pattern, like_pattern]
+            + ft_params
+            + tag_params
+            + [like_pattern]
+            + ft_params
+            + tag_params
         )
         count_cursor = await db.execute(count_sql, count_params)
         total_count = (await count_cursor.fetchone())[0]
-        
+
         # 计算分页
         total_pages = ceil(total_count / limit) if total_count > 0 else 1
         page = max(1, min(page, total_pages))
         offset = (page - 1) * limit
-        
+
         # 查询当前页数据（FTS5 + 元数据 + 标签，按 sort_group 和 score 排序）
         sql = f"""
             SELECT uuid, title, file_name, file_type, thumbnail_path, snippet,
@@ -173,24 +178,30 @@ async def search_documents_service(
             ORDER BY sort_group, score
             LIMIT ? OFFSET ?
         """
-        
+
         query_params = (
             # FTS5 层
-            [fts_keyword] + ft_params + tag_params
+            [fts_keyword]
+            + ft_params
+            + tag_params
             # 元数据 LIKE 层
-            + [like_pattern, like_pattern, like_pattern, like_pattern, like_pattern] + ft_params + tag_params
+            + [like_pattern, like_pattern, like_pattern, like_pattern, like_pattern]
+            + ft_params
+            + tag_params
             + [fts_keyword]
             # 标签名匹配层
-            + [like_pattern] + ft_params + tag_params
+            + [like_pattern]
+            + ft_params
+            + tag_params
             + [fts_keyword]
             + [like_pattern, like_pattern, like_pattern, like_pattern, like_pattern]
             # 分页
             + [limit, offset]
         )
-        
+
         cursor = await db.execute(sql, query_params)
         rows = await cursor.fetchall()
-        
+
         settings = get_settings()
         results = []
         doc_ids: list[int] = []
@@ -233,15 +244,13 @@ async def search_documents_service(
             # 构建 document_id -> tags 映射
             tags_map: dict[int, list[dict]] = {}
             for did, tag_uuid, tag_name, tag_color in tag_rows:
-                tags_map.setdefault(did, []).append(
-                    {"uuid": tag_uuid, "name": tag_name, "color": tag_color}
-                )
+                tags_map.setdefault(did, []).append({"uuid": tag_uuid, "name": tag_name, "color": tag_color})
             # 将标签分配到对应文档
             for idx, doc in enumerate(results):
                 doc["tags"] = tags_map.get(doc_ids[idx], [])
-        
+
         return results, page, total_pages, total_count
-    
+
     except Exception as e:
         logger.error("搜索失败: %s", e, exc_info=True)
         return [], 1, 1, 0

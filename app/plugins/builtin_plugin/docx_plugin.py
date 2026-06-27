@@ -62,9 +62,12 @@ def convert(ctx: PluginContext) -> bytes | None:
 
 def preview(ctx: PluginContext) -> PreviewResult:
     """使用模板渲染 DOCX 预览页面。"""
-    html = render_template("docx_preview.html", {
-        "file_name": ctx.file_name,
-        "title": ctx.title or ctx.file_name,
-        "file_url": ctx.file_url,
-    })
+    html = render_template(
+        "docx_preview.html",
+        {
+            "file_name": ctx.file_name,
+            "title": ctx.title or ctx.file_name,
+            "file_url": ctx.file_url,
+        },
+    )
     return PreviewResult.from_html(html)

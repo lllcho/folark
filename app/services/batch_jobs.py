@@ -4,7 +4,6 @@ import asyncio
 import json
 import logging
 import uuid as uuid_lib
-from datetime import datetime
 
 from app.config import get_settings, resolve_file_path
 from app.database import get_db
@@ -83,9 +82,7 @@ async def create_batch_job(document_uuids: list[str], handlers: list[dict]) -> d
     )
 
     # 获取 job_id
-    async with db.execute(
-        "SELECT id FROM batch_jobs WHERE uuid = ?", (job_uuid,)
-    ) as cursor:
+    async with db.execute("SELECT id FROM batch_jobs WHERE uuid = ?", (job_uuid,)) as cursor:
         job_row = await cursor.fetchone()
     job_id = job_row[0]
 
@@ -138,10 +135,12 @@ async def create_pipeline_batch_job(document_uuids: list[str]) -> dict:
             continue
         if not handler.enabled:
             continue
-        handlers.append({
-            "plugin_name": handler.plugin.name,
-            "handler_name": handler.info.handler_name,
-        })
+        handlers.append(
+            {
+                "plugin_name": handler.plugin.name,
+                "handler_name": handler.info.handler_name,
+            }
+        )
 
     return await create_batch_job(document_uuids, handlers)
 
@@ -159,9 +158,7 @@ async def run_batch_job(job_uuid: str) -> None:
 
     try:
         # 查询 job_id
-        async with db.execute(
-            "SELECT id FROM batch_jobs WHERE uuid = ?", (job_uuid,)
-        ) as cursor:
+        async with db.execute("SELECT id FROM batch_jobs WHERE uuid = ?", (job_uuid,)) as cursor:
             job_row = await cursor.fetchone()
         if not job_row:
             logger.error("批量任务不存在: %s", job_uuid)
@@ -182,9 +179,7 @@ async def run_batch_job(job_uuid: str) -> None:
             item_id, document_id, plugin_name, handler_name = item_row
 
             # 检查 job 状态（paused/cancelled 则停止）
-            async with db.execute(
-                "SELECT status FROM batch_jobs WHERE id = ?", (job_id,)
-            ) as cursor:
+            async with db.execute("SELECT status FROM batch_jobs WHERE id = ?", (job_id,)) as cursor:
                 status_row = await cursor.fetchone()
             if status_row and status_row[0] in ("paused", "cancelled"):
                 logger.info("批量任务 %s 状态为 %s，停止执行", job_uuid, status_row[0])
@@ -215,9 +210,19 @@ async def run_batch_job(job_uuid: str) -> None:
                     raise ValueError(f"文档不存在: document_id={document_id}")
 
                 (
-                    doc_id, doc_uuid, file_name, file_path_str, file_type,
-                    file_size, title, authors, summary, meta_data,
-                    thumbnail_path, import_method, plain_text,
+                    doc_id,
+                    doc_uuid,
+                    file_name,
+                    file_path_str,
+                    file_type,
+                    file_size,
+                    title,
+                    authors,
+                    summary,
+                    meta_data,
+                    thumbnail_path,
+                    import_method,
+                    plain_text,
                 ) = doc_row
 
                 file_path = resolve_file_path(file_path_str, import_method)
@@ -245,8 +250,12 @@ async def run_batch_job(job_uuid: str) -> None:
                 handler_info = manager.get_handler_info(plugin_name, handler_name)
                 if handler_info:
                     await persist_task_result(
-                        handler_info.handler_type, result, db, document_id,
-                        uuid=doc_uuid, settings=settings,
+                        handler_info.handler_type,
+                        result,
+                        db,
+                        document_id,
+                        uuid=doc_uuid,
+                        settings=settings,
                     )
 
                 # 标记 item 成功
@@ -263,7 +272,9 @@ async def run_batch_job(job_uuid: str) -> None:
             except Exception as e:
                 logger.warning(
                     "批量任务 item 执行失败: job=%s, item=%d, error=%s",
-                    job_uuid, item_id, str(e),
+                    job_uuid,
+                    item_id,
+                    str(e),
                     exc_info=True,
                 )
                 error_msg = str(e)[:500]
@@ -278,9 +289,7 @@ async def run_batch_job(job_uuid: str) -> None:
                 await db.commit()
 
         # 检查最终状态：如果不是 paused/cancelled，标记为 completed
-        async with db.execute(
-            "SELECT status FROM batch_jobs WHERE id = ?", (job_id,)
-        ) as cursor:
+        async with db.execute("SELECT status FROM batch_jobs WHERE id = ?", (job_id,)) as cursor:
             final_status = await cursor.fetchone()
         if final_status and final_status[0] == "running":
             await db.execute(
@@ -308,9 +317,7 @@ async def run_batch_job(job_uuid: str) -> None:
 async def pause_batch_job(job_uuid: str) -> dict:
     """将 job status 设为 paused。"""
     db = get_db()
-    async with db.execute(
-        "SELECT status FROM batch_jobs WHERE uuid = ?", (job_uuid,)
-    ) as cursor:
+    async with db.execute("SELECT status FROM batch_jobs WHERE uuid = ?", (job_uuid,)) as cursor:
         row = await cursor.fetchone()
     if not row:
         return {"error": "任务不存在"}
@@ -318,7 +325,8 @@ async def pause_batch_job(job_uuid: str) -> dict:
         return {"error": f"当前状态 {row[0]} 不可暂停"}
 
     await db.execute(
-        "UPDATE batch_jobs SET status = 'paused' WHERE uuid = ?", (job_uuid,),
+        "UPDATE batch_jobs SET status = 'paused' WHERE uuid = ?",
+        (job_uuid,),
     )
     await db.commit()
     logger.info("批量任务已暂停: %s", job_uuid)
@@ -328,9 +336,7 @@ async def pause_batch_job(job_uuid: str) -> dict:
 async def resume_batch_job(job_uuid: str) -> dict:
     """将 job status 设为 running，重新启动 run_batch_job。"""
     db = get_db()
-    async with db.execute(
-        "SELECT status FROM batch_jobs WHERE uuid = ?", (job_uuid,)
-    ) as cursor:
+    async with db.execute("SELECT status FROM batch_jobs WHERE uuid = ?", (job_uuid,)) as cursor:
         row = await cursor.fetchone()
     if not row:
         return {"error": "任务不存在"}
@@ -338,7 +344,8 @@ async def resume_batch_job(job_uuid: str) -> dict:
         return {"error": f"当前状态 {row[0]} 不可恢复"}
 
     await db.execute(
-        "UPDATE batch_jobs SET status = 'running' WHERE uuid = ?", (job_uuid,),
+        "UPDATE batch_jobs SET status = 'running' WHERE uuid = ?",
+        (job_uuid,),
     )
     # 将中断时处于 running 状态的 items 重置为 pending
     await db.execute(
@@ -360,9 +367,7 @@ async def resume_batch_job(job_uuid: str) -> dict:
 async def cancel_batch_job(job_uuid: str) -> dict:
     """将 job status 设为 cancelled。"""
     db = get_db()
-    async with db.execute(
-        "SELECT status FROM batch_jobs WHERE uuid = ?", (job_uuid,)
-    ) as cursor:
+    async with db.execute("SELECT status FROM batch_jobs WHERE uuid = ?", (job_uuid,)) as cursor:
         row = await cursor.fetchone()
     if not row:
         return {"error": "任务不存在"}
@@ -391,7 +396,8 @@ async def get_batch_jobs(status: str | None = None, page: int = 1, limit: int = 
 
     # 查询总数
     async with db.execute(
-        f"SELECT COUNT(*) FROM batch_jobs {where_clause}", params,
+        f"SELECT COUNT(*) FROM batch_jobs {where_clause}",
+        params,
     ) as cursor:
         total = (await cursor.fetchone())[0]
 
@@ -416,20 +422,22 @@ async def get_batch_jobs(status: str | None = None, page: int = 1, limit: int = 
             except (json.JSONDecodeError, TypeError):
                 pass
 
-        items.append({
-            "id": row[0],
-            "uuid": row[1],
-            "status": row[2],
-            "document_count": row[3],
-            "handlers": handlers_data,
-            "total_items": row[5],
-            "success_count": row[6],
-            "failed_count": row[7],
-            "skipped_count": row[8],
-            "created_at": row[9],
-            "started_at": row[10],
-            "completed_at": row[11],
-        })
+        items.append(
+            {
+                "id": row[0],
+                "uuid": row[1],
+                "status": row[2],
+                "document_count": row[3],
+                "handlers": handlers_data,
+                "total_items": row[5],
+                "success_count": row[6],
+                "failed_count": row[7],
+                "skipped_count": row[8],
+                "created_at": row[9],
+                "started_at": row[10],
+                "completed_at": row[11],
+            }
+        )
 
     return {"items": items, "total": total, "page": page}
 
@@ -499,16 +507,18 @@ async def get_batch_job_detail(job_uuid: str) -> dict | None:
     for stat_row in handler_stats_rows:
         pname, hname, total, success, failed = stat_row
         handler_info = manager.get_handler_info(pname, hname)
-        handler_stats.append({
-            "plugin_name": pname,
-            "handler_name": hname,
-            "handler_type": handler_info.handler_type.value if handler_info else "",
-            "description": handler_info.description if handler_info else "",
-            "total": total,
-            "success": success,
-            "failed": failed,
-            "skipped": document_count - total,
-        })
+        handler_stats.append(
+            {
+                "plugin_name": pname,
+                "handler_name": hname,
+                "handler_type": handler_info.handler_type.value if handler_info else "",
+                "description": handler_info.description if handler_info else "",
+                "total": total,
+                "success": success,
+                "failed": failed,
+                "skipped": document_count - total,
+            }
+        )
     result["handler_stats"] = handler_stats
 
     # 失败项列表

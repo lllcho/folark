@@ -25,10 +25,13 @@ _AUDIO_MIME_MAP = {
 
 def preview(ctx: PluginContext) -> PreviewResult:
     """使用模板渲染音频预览页面。"""
-    html = render_template("audio_preview.html", {
-        "file_name": ctx.file_name,
-        "title": ctx.title or ctx.file_name,
-        "audio_url": ctx.file_url,
-        "audio_type": _AUDIO_MIME_MAP.get(ctx.file_type, "audio/mpeg"),
-    })
+    html = render_template(
+        "audio_preview.html",
+        {
+            "file_name": ctx.file_name,
+            "title": ctx.title or ctx.file_name,
+            "audio_url": ctx.file_url,
+            "audio_type": _AUDIO_MIME_MAP.get(ctx.file_type, "audio/mpeg"),
+        },
+    )
     return PreviewResult.from_html(html)

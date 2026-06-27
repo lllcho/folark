@@ -26,27 +26,27 @@ from litestar.status_codes import (
 
 from app.config import get_settings
 from app.database import get_db
-from app.services.documents import (
-    list_documents_service,
-    get_document_service,
-    update_document_fields,
-    replace_document_tags,
-    add_document_tags,
-    remove_document_tag_service,
-    batch_delete_documents_service,
-    batch_add_tags_service,
-    build_plugin_context,
-    update_document_thumbnail,
-)
-from app.services.batch_jobs import create_pipeline_batch_job
-from app.services.ingestion import (
-    check_duplicate,
-    upsert_document_by_path,
-    validate_import_path,
-    compute_file_hash,
-)
 from app.plugins.core import PreviewResult, TaskHandlerType
 from app.plugins.manager import get_plugin_manager
+from app.services.batch_jobs import create_pipeline_batch_job
+from app.services.documents import (
+    add_document_tags,
+    batch_add_tags_service,
+    batch_delete_documents_service,
+    build_plugin_context,
+    get_document_service,
+    list_documents_service,
+    remove_document_tag_service,
+    replace_document_tags,
+    update_document_fields,
+    update_document_thumbnail,
+)
+from app.services.ingestion import (
+    check_duplicate,
+    compute_file_hash,
+    upsert_document_by_path,
+    validate_import_path,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +66,11 @@ async def list_documents(
     支持排序：default / name_asc / name_desc / size_asc / size_desc / date_asc / date_desc。
     """
     documents, current_page, total_pages, total_count = await list_documents_service(
-        page=page, limit=limit, file_type=type, tag=tag, sort=sort,
+        page=page,
+        limit=limit,
+        file_type=type,
+        tag=tag,
+        sort=sort,
     )
     return {
         "documents": documents,
@@ -113,9 +117,7 @@ async def upload_file(
     # 获取原始文件名
     original_filename = data.filename
     if not original_filename:
-        raise HTTPException(
-            status_code=HTTP_400_BAD_REQUEST, detail="文件名不能为空"
-        )
+        raise HTTPException(status_code=HTTP_400_BAD_REQUEST, detail="文件名不能为空")
 
     # 1. 校验文件后缀
     extension = Path(original_filename).suffix.lower()
@@ -127,9 +129,7 @@ async def upload_file(
 
     # 2. 流式写入临时文件并计算哈希（避免大文件全量驻留内存）
     settings.LIBRARY_ROOT.mkdir(parents=True, exist_ok=True)
-    tmp_fd = tempfile.NamedTemporaryFile(
-        delete=False, dir=str(settings.LIBRARY_ROOT), suffix=extension
-    )
+    tmp_fd = tempfile.NamedTemporaryFile(delete=False, dir=str(settings.LIBRARY_ROOT), suffix=extension)
     tmp_path = Path(tmp_fd.name)
     try:
         sha256 = hashlib.sha256()
@@ -215,10 +215,7 @@ async def import_directory(path: str) -> dict:
         )
 
     # 扫描目录，收集所有支持的文件
-    files = [
-        f for f in validated_path.rglob("*")
-        if f.is_file() and f.suffix.lower() in settings.ALLOWED_EXTENSIONS
-    ]
+    files = [f for f in validated_path.rglob("*") if f.is_file() and f.suffix.lower() in settings.ALLOWED_EXTENSIONS]
     total = len(files)
 
     imported_count = 0
@@ -376,9 +373,7 @@ async def batch_delete_documents(data: dict) -> dict:
     """
     uuids = data.get("uuids", [])
     if not uuids or not isinstance(uuids, list):
-        raise HTTPException(
-            status_code=HTTP_400_BAD_REQUEST, detail="请提供要删除的文档 UUID 列表"
-        )
+        raise HTTPException(status_code=HTTP_400_BAD_REQUEST, detail="请提供要删除的文档 UUID 列表")
 
     try:
         deleted_count = await batch_delete_documents_service(uuids)
@@ -401,13 +396,9 @@ async def batch_add_tags(data: dict) -> dict:
     tag_names = data.get("tag_names", [])
 
     if not uuids or not isinstance(uuids, list):
-        raise HTTPException(
-            status_code=HTTP_400_BAD_REQUEST, detail="请提供要操作的文档 UUID 列表"
-        )
+        raise HTTPException(status_code=HTTP_400_BAD_REQUEST, detail="请提供要操作的文档 UUID 列表")
     if not tag_names or not isinstance(tag_names, list):
-        raise HTTPException(
-            status_code=HTTP_400_BAD_REQUEST, detail="请提供要添加的标签名称列表"
-        )
+        raise HTTPException(status_code=HTTP_400_BAD_REQUEST, detail="请提供要添加的标签名称列表")
 
     try:
         processed = await batch_add_tags_service(uuids, tag_names)
@@ -427,10 +418,12 @@ async def remove_document_tag(uuid: str, tag_uuid: str) -> None:
 
 
 @get("/documents/{uuid:str}/download")
-async def download_document(uuid: str, request: Request, inline: bool = False, target_type: str | None = None) -> File | Response:
+async def download_document(
+    uuid: str, request: Request, inline: bool = False, target_type: str | None = None
+) -> File | Response:
     """
     下载原始文件，支持 HTTP Range 请求。
-    
+
     返回文件响应，Content-Disposition 使用原始文件名。
     """
     try:
@@ -489,13 +482,13 @@ async def download_document(uuid: str, request: Request, inline: bool = False, t
     range_header = request.headers.get("range")
     if range_header and range_header.startswith("bytes="):
         file_size = file_path.stat().st_size
-        
+
         # 解析 Range header
         range_spec = range_header[6:].strip()  # 移除 "bytes="
-        
+
         # 确定 content type
         content_type = mimetypes.guess_type(file_name)[0] or "application/octet-stream"
-        
+
         try:
             if range_spec.startswith("-"):
                 # bytes=-N (最后 N 字节)
@@ -511,7 +504,7 @@ async def download_document(uuid: str, request: Request, inline: bool = False, t
                 parts = range_spec.split("-", 1)
                 start = int(parts[0])
                 end = int(parts[1])
-            
+
             # 验证范围
             if start < 0 or start >= file_size or end < start:
                 return Response(
@@ -522,17 +515,17 @@ async def download_document(uuid: str, request: Request, inline: bool = False, t
                         "Accept-Ranges": "bytes",
                     },
                 )
-            
+
             end = min(end, file_size - 1)
             content_length = end - start + 1
-            
+
             # 读取指定范围
             with open(file_path, "rb") as f:
                 f.seek(start)
                 data = f.read(content_length)
-            
+
             disposition = "inline" if inline else "attachment"
-            
+
             return Response(
                 content=data,
                 status_code=206,
@@ -546,10 +539,10 @@ async def download_document(uuid: str, request: Request, inline: bool = False, t
             )
         except (ValueError, OSError) as e:
             logger.debug("Range 解析失败，回退到完整文件返回: %s", e)
-    
+
     # 无 Range 或解析失败 → 返回完整文件
     logger.info("下载文件: uuid=%s, file_name=%s", uuid, file_name)
-    
+
     return File(
         path=file_path,
         filename=file_name,
@@ -607,10 +600,12 @@ async def preview_document(uuid: str, target_type: str | None = None) -> File | 
                     ctx.file_type = target_type  # 确保 preview 阶段解析到正确的插件
                     # 保存为临时文件，更新 ctx.file_path
                     import tempfile
+
                     previews_dir = settings.PREVIEWS_ROOT
                     previews_dir.mkdir(parents=True, exist_ok=True)
                     tmp = tempfile.NamedTemporaryFile(
-                        suffix=f".{target_type}", delete=False,
+                        suffix=f".{target_type}",
+                        delete=False,
                         dir=str(previews_dir),
                     )
                     tmp.write(converted_bytes)
@@ -693,4 +688,3 @@ documents_router = Router(
         preview_document,
     ],
 )
-

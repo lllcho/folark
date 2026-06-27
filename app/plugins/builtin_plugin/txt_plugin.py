@@ -5,7 +5,6 @@ from __future__ import annotations
 import html as html_mod
 import logging
 import re
-from pathlib import Path
 from uuid import uuid4
 
 from app.plugins.builtin_plugin.utils import read_text_with_encoding

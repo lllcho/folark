@@ -1,18 +1,19 @@
 """插件核心框架：定义任务类型、装饰器、上下文数据类及任务结果自持久化。"""
 
 from __future__ import annotations
-from typing import Any
+
+from collections.abc import Callable
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from functools import wraps
 from pathlib import Path
-from typing import Callable, TypeVar
+from typing import Any, TypeVar
 
 from app.config import Settings
 
 
 # ── TaskHandlerType 枚举 ─────────────────────────────────────────
-class TaskHandlerType(str, Enum):
+class TaskHandlerType(StrEnum):
     """任务类型枚举，同时也是字符串。"""
 
     EXTRACT = "extract"
@@ -21,20 +22,14 @@ class TaskHandlerType(str, Enum):
     CONVERT = "convert"
     PREVIEW = "preview"
 
-    def __str__(self) -> str:
-        return self.value
-
 
 # ── TaskHandlerMode 枚举 ─────────────────────────────────────────
-class TaskHandlerMode(str, Enum):
+class TaskHandlerMode(StrEnum):
     """任务执行模式。"""
 
     INSTANT = "instant"
     BACKGROUND = "background"
     ON_DEMAND = "on_demand"
-
-    def __str__(self) -> str:
-        return self.value
 
 
 # ── 任务类型常量 ──────────────────────────────────────────
@@ -54,6 +49,7 @@ class TaskHandlerInfo:
     handler_mode: TaskHandlerMode = TaskHandlerMode.INSTANT
     description: str = ""
 
+
 # ── TaskHandler 数据类 ─────────────────────────────────────
 @dataclass
 class TaskHandler:
@@ -63,6 +59,7 @@ class TaskHandler:
     method: Callable[..., Any]  # 绑定的方法引用
     info: TaskHandlerInfo
     enabled: bool = True
+
 
 # ── @task_handler 装饰器 ──────────────────────────────────
 F = TypeVar("F", bound=Callable)
@@ -98,7 +95,9 @@ def task_handler(
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             result = func(*args, **kwargs)
-            if result is None or isinstance(result, (ExtractResult, ThumbnailResult, SummarizeResult, ConvertResult, PreviewResult)):
+            if result is None or isinstance(
+                result, (ExtractResult, ThumbnailResult, SummarizeResult, ConvertResult, PreviewResult)
+            ):
                 return result
             if handler_type == TaskHandlerType.EXTRACT:
                 return ExtractResult.from_text(result)
@@ -181,10 +180,11 @@ class ExtractResult:
     def word_count(self) -> int:
         """计算词数（中英文混合）。"""
         import re
-        return len(re.findall(r'[\u4e00-\u9fff\u3400-\u4dbf]|\b\w+\b', self.plain_text))
+
+        return len(re.findall(r"[\u4e00-\u9fff\u3400-\u4dbf]|\b\w+\b", self.plain_text))
 
     @classmethod
-    def from_text(cls, text: str) -> "ExtractResult":
+    def from_text(cls, text: str) -> ExtractResult:
         """从纯文本创建提取结果。"""
         return cls(plain_text=text)
 
@@ -204,7 +204,7 @@ class ExtractResult:
             max_bytes = settings.MAX_PLAIN_TEXT_BYTES
             encoded = self.plain_text.encode("utf-8")
             stored_text = encoded[:max_bytes].decode("utf-8", errors="ignore")
-            stored_text = settings.TRUNCATION_NOTICE+'\n'+stored_text
+            stored_text = settings.TRUNCATION_NOTICE + "\n" + stored_text
 
         await db.execute(
             "INSERT OR REPLACE INTO document_texts (document_id, plain_text, word_count) VALUES (?, ?, ?)",
@@ -228,7 +228,7 @@ class ThumbnailResult:
     quality: int = 85
 
     @classmethod
-    def from_image(cls, image: Any, *, format: str = "JPEG", quality: int = 85) -> "ThumbnailResult":
+    def from_image(cls, image: Any, *, format: str = "JPEG", quality: int = 85) -> ThumbnailResult:
         """从 PIL Image 创建缩略图结果。"""
         return cls(image=image, format=format, quality=quality)
 
@@ -265,7 +265,7 @@ class SummarizeResult:
     summary: str
 
     @classmethod
-    def from_summary(cls, summary: str) -> "SummarizeResult":
+    def from_summary(cls, summary: str) -> SummarizeResult:
         """从摘要文本创建结果。"""
         return cls(summary=summary)
 
@@ -291,7 +291,7 @@ class ConvertResult:
     target_type: str
 
     @classmethod
-    def from_bytes(cls, content: bytes, target_type: str) -> "ConvertResult":
+    def from_bytes(cls, content: bytes, target_type: str) -> ConvertResult:
         """从字节数据创建转换结果。"""
         return cls(content=content, target_type=target_type)
 
@@ -309,12 +309,12 @@ class PreviewResult:
     media_type: str | None = None  # kind="file" 时的 MIME type
 
     @classmethod
-    def from_html(cls, content: str) -> "PreviewResult":
+    def from_html(cls, content: str) -> PreviewResult:
         """创建 HTML 类型的预览结果。"""
         return cls(kind="html", html=content)
 
     @classmethod
-    def from_file(cls, path: Path, media_type: str | None = None) -> "PreviewResult":
+    def from_file(cls, path: Path, media_type: str | None = None) -> PreviewResult:
         """创建文件类型的预览结果。"""
         return cls(kind="file", file_path=path, media_type=media_type)
 

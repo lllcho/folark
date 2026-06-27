@@ -1,4 +1,5 @@
 """标签管理 API"""
+
 import logging
 import uuid as uuid_mod
 
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 @get("/")
 async def list_tags() -> list[dict]:
     """获取所有标签
-    
+
     Returns:
         标签列表，每个标签包含 uuid, name, color
     """
@@ -27,61 +28,56 @@ async def list_tags() -> list[dict]:
 @post("/")
 async def create_tag(data: dict) -> Response:
     """创建标签
-    
+
     Args:
         data: 包含 name (必填) 和 color (可选) 的字典
-        
+
     Returns:
         创建的标签信息，状态码 201
-        
+
     Raises:
         HTTPException: 如果标签名已存在，返回 409
     """
     name = data.get("name", "").strip()
     color = data.get("color", "#409EFF")
-    
+
     if not name:
         raise HTTPException(status_code=400, detail="标签名称不能为空")
-    
+
     db = get_db()
-    
+
     # 检查名称是否已存在
     cursor = await db.execute("SELECT uuid FROM tags WHERE name = ?", (name,))
     existing = await cursor.fetchone()
-    
+
     if existing:
         raise HTTPException(status_code=HTTP_409_CONFLICT, detail="标签名称已存在")
-    
+
     # 生成 uuid 并创建标签
     tag_uuid = str(uuid_mod.uuid4())
-    
-    await db.execute(
-        "INSERT INTO tags (uuid, name, color) VALUES (?, ?, ?)",
-        (tag_uuid, name, color)
-    )
+
+    await db.execute("INSERT INTO tags (uuid, name, color) VALUES (?, ?, ?)", (tag_uuid, name, color))
     await db.commit()
-    
+
     logger.info("标签已创建: %s (%s)", name, tag_uuid)
-    
+
     return Response(
-        content={"uuid": tag_uuid, "name": name, "color": color},
-        status_code=201,
-        media_type="application/json"
+        content={"uuid": tag_uuid, "name": name, "color": color}, status_code=201, media_type="application/json"
     )
 
 
 @delete("/{uuid:str}", status_code=204)
 async def delete_tag(uuid: str) -> None:
     """删除标签
-    
+
     Args:
         uuid: 标签的 UUID
     """
     db = get_db()
-    
+
     await db.execute("DELETE FROM tags WHERE uuid = ?", (uuid,))
     await db.commit()
-    
+
     logger.info("标签已删除: %s", uuid)
 
 
@@ -126,9 +122,7 @@ async def update_tag(uuid: str, data: dict) -> dict:
         if not new_name:
             raise HTTPException(status_code=HTTP_400_BAD_REQUEST, detail="标签名称不能为空")
         # 检查名称唯一性（排除自身）
-        cursor = await db.execute(
-            "SELECT uuid FROM tags WHERE name = ? AND uuid != ?", (new_name, uuid)
-        )
+        cursor = await db.execute("SELECT uuid FROM tags WHERE name = ? AND uuid != ?", (new_name, uuid))
         if await cursor.fetchone():
             raise HTTPException(status_code=HTTP_409_CONFLICT, detail="标签名称已存在")
         await db.execute("UPDATE tags SET name = ? WHERE id = ?", (new_name, tag_id))
@@ -145,4 +139,6 @@ async def update_tag(uuid: str, data: dict) -> dict:
     return {"uuid": updated[0], "name": updated[1], "color": updated[2]}
 
 
-tags_router = Router(path="/api/tags", route_handlers=[list_tags, create_tag, delete_tag, list_tags_with_count, update_tag])
+tags_router = Router(
+    path="/api/tags", route_handlers=[list_tags, create_tag, delete_tag, list_tags_with_count, update_tag]
+)

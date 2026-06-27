@@ -44,6 +44,7 @@ PROJECT_ROOT = BASE_DIR.parent
 #  认证相关
 # ──────────────────────────────────────────
 
+
 def _sign_cookie(value: str, secret: str) -> str:
     """生成 value.signature 格式的签名 Cookie。"""
     sig = hmac.new(secret.encode(), value.encode(), hashlib.sha256).hexdigest()
@@ -101,26 +102,30 @@ class AuthMiddleware(AbstractMiddleware):
         accept = headers.get(b"accept", b"").decode("utf-8", errors="replace")
         if "text/html" in accept:
             # 页面请求 → 302 重定向到 /login
-            await send({
-                "type": "http.response.start",
-                "status": 302,
-                "headers": [
-                    (b"location", b"/login"),
-                    (b"content-length", b"0"),
-                ],
-            })
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 302,
+                    "headers": [
+                        (b"location", b"/login"),
+                        (b"content-length", b"0"),
+                    ],
+                }
+            )
             await send({"type": "http.response.body", "body": b""})
         else:
             # API 请求 → 401 JSON
             body = _json.dumps({"detail": "未登录"}).encode()
-            await send({
-                "type": "http.response.start",
-                "status": 401,
-                "headers": [
-                    (b"content-type", b"application/json"),
-                    (b"content-length", str(len(body)).encode()),
-                ],
-            })
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 401,
+                    "headers": [
+                        (b"content-type", b"application/json"),
+                        (b"content-length", str(len(body)).encode()),
+                    ],
+                }
+            )
             await send({"type": "http.response.body", "body": body})
 
 
@@ -201,7 +206,6 @@ async def import_page() -> Template:
 async def settings_page() -> Template:
     """设置中心页面。"""
     return Template(template_name="settings.html")
-
 
 
 @get("/static/thumbnails/{filename:str}")
@@ -293,8 +297,12 @@ class AccessLogMiddleware(AbstractMiddleware):
             query_string = scope.get("query_string", b"").decode("utf-8", errors="replace")
             full_path = f"{request_path}?{query_string}" if query_string else request_path
             access_logger.info(
-                '[%s] %s %s %d %.1fms',
-                request_id, request_method, full_path, status_code, duration_ms,
+                "[%s] %s %s %d %.1fms",
+                request_id,
+                request_method,
+                full_path,
+                status_code,
+                duration_ms,
             )
 
 
@@ -311,9 +319,7 @@ def setup_logging(settings):
     root_logger.addFilter(request_id_filter)
 
     # 检查是否已经添加过 RotatingFileHandler（避免重复添加）
-    has_file_handler = any(
-        isinstance(h, RotatingFileHandler) for h in root_logger.handlers
-    )
+    has_file_handler = any(isinstance(h, RotatingFileHandler) for h in root_logger.handlers)
     if has_file_handler:
         return
 
@@ -325,8 +331,7 @@ def setup_logging(settings):
 
     # 如果没有终端 handler，添加一个
     has_console = any(
-        isinstance(h, logging.StreamHandler) and not isinstance(h, RotatingFileHandler)
-        for h in root_logger.handlers
+        isinstance(h, logging.StreamHandler) and not isinstance(h, RotatingFileHandler) for h in root_logger.handlers
     )
     if not has_console:
         console_handler = logging.StreamHandler()
@@ -421,15 +426,16 @@ async def on_startup() -> None:
     await manager.sync_db(get_db())
     set_plugin_manager(manager)
     logger.info("插件管理器已初始化: 共加载 %d 个插件", len(manager.plugins))
-    
+
     # 记录每种扩展名支持的下载和预览格式
     for ext in sorted(settings.ALLOWED_EXTENSIONS):
-        preview_formats = manager.get_preview_formats(ext.lstrip('.'))
-        download_formats = manager.get_download_formats(ext.lstrip('.'))
+        preview_formats = manager.get_preview_formats(ext.lstrip("."))
+        download_formats = manager.get_download_formats(ext.lstrip("."))
         logger.info("扩展名 %s: 预览格式=%s, 下载格式=%s", ext, preview_formats, download_formats)
 
     # 标记中断的批量任务
     from app.services.batch_jobs import mark_interrupted_jobs
+
     await mark_interrupted_jobs()
 
     logger.info("folark 已启动，LIBRARY_ROOT=%s", settings.LIBRARY_ROOT)

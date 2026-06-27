@@ -67,16 +67,22 @@ class PluginManager:
             if existing is not None and existing.plugin.name != plugin.name:
                 logger.warning(
                     "处理器 '%s' (插件 '%s') 覆盖了 '%s'",
-                    handler_info.handler_name, plugin.name, existing.plugin.name,
+                    handler_info.handler_name,
+                    plugin.name,
+                    existing.plugin.name,
                 )
             self.handler_registry[key] = TaskHandler(
-                plugin=plugin, method=method, info=handler_info,
+                plugin=plugin,
+                method=method,
+                info=handler_info,
             )
             handler_count += 1
 
         logger.info(
             "插件已注册: %s v%s (%d 个处理器)",
-            plugin.name, plugin.version, handler_count,
+            plugin.name,
+            plugin.version,
+            handler_count,
         )
 
     def execute(self, plugin_name: str, handler_name: str, ctx: PluginContext) -> TaskResult | None:
@@ -96,8 +102,11 @@ class PluginManager:
         try:
             return handler.method(ctx)
         except Exception:
-            logger.exception("插件 '%s' 在处理器 '%s' 执行时失败, 文件: %s",
-                plugin_name, handler_name, ctx.file_name,
+            logger.exception(
+                "插件 '%s' 在处理器 '%s' 执行时失败, 文件: %s",
+                plugin_name,
+                handler_name,
+                ctx.file_name,
             )
             return None
 
@@ -105,7 +114,6 @@ class PluginManager:
         """获取指定 (plugin_name, handler_name) 的处理器元数据。"""
         handler = self.handler_registry.get((plugin_name, handler_name))
         return handler.info if handler else None
-
 
     def get_plugin(self, name: str) -> BasePlugin | None:
         """按名称获取插件实例。"""
@@ -183,9 +191,7 @@ class PluginManager:
                     self.register(plugin_instance)
                     logger.info("第三方插件已加载: %s", plugin_instance.name)
                 except Exception:
-                    logger.exception(
-                        "第三方插件加载失败: %s", ep.name
-                    )
+                    logger.exception("第三方插件加载失败: %s", ep.name)
         except Exception:
             logger.debug("未找到 folark.plugins 的 entry_points")
 
@@ -263,17 +269,12 @@ class PluginManager:
         """从 DB 读取 handler 的 enabled 状态，同步到内存中的 TaskHandler 对象。"""
         # 批量查询所有已启用插件的 handlers 数据
         plugin_handlers: dict[str, dict[str, bool]] = {}
-        async with db.execute(
-            "SELECT name, task_handlers FROM plugins WHERE enabled = 1"
-        ) as cursor:
+        async with db.execute("SELECT name, task_handlers FROM plugins WHERE enabled = 1") as cursor:
             async for row in cursor:
                 if not row[1]:
                     continue
                 try:
-                    handlers_map = {
-                        t["handler_name"]: bool(t.get("enabled", 1))
-                        for t in json.loads(row[1])
-                    }
+                    handlers_map = {t["handler_name"]: bool(t.get("enabled", 1)) for t in json.loads(row[1])}
                     plugin_handlers[row[0]] = handlers_map
                 except (json.JSONDecodeError, TypeError):
                     pass

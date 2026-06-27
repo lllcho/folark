@@ -22,10 +22,13 @@ def extract(ctx: PluginContext) -> str | None:
 def preview(ctx: PluginContext) -> PreviewResult:
     file_content, _ = read_text_with_encoding(ctx.file_path)
 
-    html = render_template("text_preview.html", {
-        "file_name": ctx.file_name,
-        "content": file_content,
-        "file_type": f".{ctx.file_type}",
-        "title": ctx.title or ctx.file_name,
-    })
+    html = render_template(
+        "text_preview.html",
+        {
+            "file_name": ctx.file_name,
+            "content": file_content,
+            "file_type": f".{ctx.file_type}",
+            "title": ctx.title or ctx.file_name,
+        },
+    )
     return PreviewResult.from_html(html)

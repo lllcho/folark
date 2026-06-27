@@ -49,9 +49,7 @@ async def check_duplicate(db: aiosqlite.Connection, file_hash: str) -> dict | No
     Returns:
         如果已存在返回 {"uuid": existing_uuid}，否则返回 None
     """
-    async with db.execute(
-        "SELECT uuid FROM documents WHERE file_hash = ?", (file_hash,)
-    ) as cursor:
+    async with db.execute("SELECT uuid FROM documents WHERE file_hash = ?", (file_hash,)) as cursor:
         row = await cursor.fetchone()
         if row:
             return {"uuid": row[0]}
@@ -93,9 +91,7 @@ def validate_import_path(raw_path: str) -> Path:
     return path
 
 
-def save_uploaded_file(
-    file_content: bytes, original_filename: str, library_root: Path
-) -> tuple[Path, str]:
+def save_uploaded_file(file_content: bytes, original_filename: str, library_root: Path) -> tuple[Path, str]:
     """
     保存上传的文件。
 
@@ -160,9 +156,7 @@ async def upsert_document_by_path(
         (document_id, uuid, is_update) - 文档 ID、UUID、是否为更新操作
     """
     # 检查 file_path 是否已存在
-    async with db.execute(
-        "SELECT id, uuid FROM documents WHERE file_path = ?", (file_path,)
-    ) as cursor:
+    async with db.execute("SELECT id, uuid FROM documents WHERE file_path = ?", (file_path,)) as cursor:
         row = await cursor.fetchone()
 
     if row:
@@ -227,4 +221,3 @@ async def upsert_document_by_path(
             file_path,
         )
         return (document_id, uuid, False)
-

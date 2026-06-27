@@ -3,7 +3,7 @@
 import json
 import logging
 
-from litestar import Response, Router, get, patch, post
+from litestar import Router, get, patch, post
 from litestar.exceptions import HTTPException
 from litestar.status_codes import HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
 
@@ -12,7 +12,6 @@ from app.database import get_db
 from app.plugins.core import (
     PIPELINE_HANDLER_TYPES,
     PluginContext,
-    TaskHandlerType,
     persist_task_result,
 )
 from app.plugins.manager import get_plugin_manager
@@ -87,9 +86,19 @@ async def execute_plugin(
 
     # 4. 构建 PluginContext
     (
-        doc_id, uuid, file_name, file_path_str, file_type,
-        file_size, title, authors, summary, meta_data,
-        thumbnail_path, import_method, plain_text,
+        doc_id,
+        uuid,
+        file_name,
+        file_path_str,
+        file_type,
+        file_size,
+        title,
+        authors,
+        summary,
+        meta_data,
+        thumbnail_path,
+        import_method,
+        plain_text,
     ) = row
 
     file_path = resolve_file_path(file_path_str, import_method)
@@ -117,8 +126,12 @@ async def execute_plugin(
 
     # 6. 处理结果并持久化
     result_summary = await persist_task_result(
-        handler_type, result, db, document_id,
-        uuid=uuid, settings=settings,
+        handler_type,
+        result,
+        db,
+        document_id,
+        uuid=uuid,
+        settings=settings,
     )
     result_summary.update({"plugin": plugin_name, "handler_name": handler_name, "document_id": document_id})
 
@@ -138,15 +151,17 @@ async def list_pipeline_handlers() -> list[dict]:
     handlers = []
     for (plugin_name, handler_name), handler in manager.handler_registry.items():
         if handler.info.handler_type in PIPELINE_HANDLER_TYPES and handler.enabled:
-            handlers.append({
-                "plugin_name": plugin_name,
-                "handler_name": handler_name,
-                "handler_type": handler.info.handler_type.value,
-                "handler_mode": handler.info.handler_mode.value,
-                "source_types": handler.info.source_types,
-                "description": handler.info.description,
-                "enabled": handler.enabled,
-            })
+            handlers.append(
+                {
+                    "plugin_name": plugin_name,
+                    "handler_name": handler_name,
+                    "handler_type": handler.info.handler_type.value,
+                    "handler_mode": handler.info.handler_mode.value,
+                    "source_types": handler.info.source_types,
+                    "description": handler.info.description,
+                    "enabled": handler.enabled,
+                }
+            )
     return handlers
 
 
@@ -176,17 +191,19 @@ async def list_plugins() -> list[dict]:
         default_config = plugin_instance.default_config if plugin_instance else {}
         current_config = plugin_instance.config if plugin_instance else (json.loads(config) if config else {})
 
-        result.append({
-            "name": name,
-            "version": version,
-            "plugin_type": plugin_type,
-            "enabled": bool(enabled),
-            "default_config": default_config,
-            "config": current_config,
-            "tasks": tasks,
-            "installed_at": installed_at,
-            "updated_at": updated_at,
-        })
+        result.append(
+            {
+                "name": name,
+                "version": version,
+                "plugin_type": plugin_type,
+                "enabled": bool(enabled),
+                "default_config": default_config,
+                "config": current_config,
+                "tasks": tasks,
+                "installed_at": installed_at,
+                "updated_at": updated_at,
+            }
+        )
 
     return result
 
@@ -197,9 +214,7 @@ async def update_plugin(plugin_name: str, data: dict) -> dict:
     db = get_db()
 
     # 检查插件是否存在
-    async with db.execute(
-        "SELECT id FROM plugins WHERE name = ?", (plugin_name,)
-    ) as cursor:
+    async with db.execute("SELECT id FROM plugins WHERE name = ?", (plugin_name,)) as cursor:
         row = await cursor.fetchone()
     if not row:
         raise HTTPException(
@@ -251,9 +266,7 @@ async def update_plugin_handler(
     db = get_db()
 
     # 读取插件记录
-    async with db.execute(
-        "SELECT task_handlers FROM plugins WHERE name = ?", (plugin_name,)
-    ) as cursor:
+    async with db.execute("SELECT task_handlers FROM plugins WHERE name = ?", (plugin_name,)) as cursor:
         row = await cursor.fetchone()
     if not row:
         raise HTTPException(

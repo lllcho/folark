@@ -14,8 +14,8 @@ logger = logging.getLogger(__name__)
 def extract(ctx: PluginContext) -> str | None:
     try:
         import ebooklib
-        from ebooklib import epub
         from bs4 import BeautifulSoup
+        from ebooklib import epub
 
         book = epub.read_epub(str(ctx.file_path), options={"ignore_ncx": True})
         texts: list[str] = []
@@ -75,9 +75,12 @@ def thumbnail(ctx: PluginContext):
 
 # ── preview ──────────────────────────────────────────────
 def preview(ctx: PluginContext) -> PreviewResult:
-    html = render_template("epub_preview.html", {
-        "file_name": ctx.file_name,
-        "title": ctx.title or ctx.file_name,
-        "epub_url": ctx.file_url,
-    })
+    html = render_template(
+        "epub_preview.html",
+        {
+            "file_name": ctx.file_name,
+            "title": ctx.title or ctx.file_name,
+            "epub_url": ctx.file_url,
+        },
+    )
     return PreviewResult.from_html(html)

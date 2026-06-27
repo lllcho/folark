@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 # 工具函数：从文件名列表构建目录树并输出文本
 # ---------------------------------------------------------------------------
 
+
 def _build_tree(names: list[str]) -> dict:
     """将路径列表构建为嵌套字典树。"""
     root: dict = {}
@@ -40,7 +41,7 @@ def _render_tree_text(tree: dict, prefix: str = "", is_last: bool = True) -> lis
     lines: list[str] = []
     items = list(tree.items())
     for i, (name, subtree) in enumerate(items):
-        last = (i == len(items) - 1)
+        last = i == len(items) - 1
         connector = "└── " if last else "├── "
         lines.append(f"{prefix}{connector}{name}")
         extension = "    " if last else "│   "
@@ -51,11 +52,7 @@ def _render_tree_text(tree: dict, prefix: str = "", is_last: bool = True) -> lis
 def _extract_zip_names(file_path) -> list[str]:
     """从 ZIP 文件提取文件名列表。"""
     with zipfile.ZipFile(file_path, "r") as zf:
-        return [
-            info.filename
-            for info in zf.infolist()
-            if not info.filename.startswith("__MACOSX")
-        ]
+        return [info.filename for info in zf.infolist() if not info.filename.startswith("__MACOSX")]
 
 
 def _extract_tar_names(file_path) -> list[str]:
@@ -122,13 +119,14 @@ def _entries_to_tree_text(entries: list[str]) -> str:
 # 插件函数
 # ---------------------------------------------------------------------------
 
+
 def extract(ctx: PluginContext) -> str | None:
     """提取压缩包内的文件列表，返回树形目录结构文本。"""
     try:
         entries = _get_archive_entries(ctx.file_path, ctx.file_type)
         if not entries:
             return None
-        return '\n'.join(entries)
+        return "\n".join(entries)
     except Exception as e:
         logger.warning("压缩包目录提取失败 %s: %s", ctx.file_path, e)
         return None
@@ -158,11 +156,14 @@ def preview(ctx: PluginContext) -> PreviewResult:
     else:
         tree_text = _entries_to_tree_text(entries)
 
-    html = render_template("archive_preview.html", {
-        "file_name": ctx.file_name,
-        "title": ctx.title or ctx.file_name,
-        "tree_text": tree_text,
-        "file_count": file_count,
-        "dir_count": dir_count,
-    })
+    html = render_template(
+        "archive_preview.html",
+        {
+            "file_name": ctx.file_name,
+            "title": ctx.title or ctx.file_name,
+            "tree_text": tree_text,
+            "file_count": file_count,
+            "dir_count": dir_count,
+        },
+    )
     return PreviewResult.from_html(html)
