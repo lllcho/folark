@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <!-- 文档主体 -->
+  <path d="M8 4h22l10 10v30a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V4z" fill="#FFEBEE"/>
+  <!-- 折角 -->
+  <path d="M30 4v8a2 2 0 0 0 2 2h8z" fill="#EF5350"/>
+  <!-- 文档边框 -->
+  <path d="M8 4h22l10 10v30a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V4z" fill="none" stroke="#E53935" stroke-width="1.5"/>
+  <!-- PDF 文字 -->
+  <text x="24" y="34" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#C62828" text-anchor="middle">PDF</text>
+</svg>

@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-CN" x-data="docxViewer()" x-init="init()">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
+    <title>{{ title }} - Word 预览</title>
+    <link rel="icon" type="image/svg+xml" href="/static/icons/docx.svg" />
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/jszip/dist/jszip.min.js"></script>
+    <script src="https://unpkg.com/docx-preview/dist/docx-preview.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <style>
+        [x-cloak] { display: none !important; }
+
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        body {
+            background: #f9fafb;
+            color: #111827;
+            touch-action: pan-x pan-y pinch-zoom;
+        }
+
+        #app {
+            height: 100dvh;
+        }
+
+        .viewer-scroll {
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
+            background: #e5e7eb;
+            position: relative;
+            touch-action: pan-x pan-y pinch-zoom;
+        }
+
+        /* 关键：默认不再用 min-width:max-content 强制贴左 */
+        .viewer-content {
+            min-height: 100%;
+            padding: 16px;
+            box-sizing: border-box;
+        }
+
+        /* 当内容宽于容器时，切换成可横向滚动模式 */
+        .viewer-content.is-scrollable {
+            width: max-content;
+            min-width: max-content;
+        }
+
+        /* 当内容窄于容器时，真正居中 */
+        .viewer-content.is-centered {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        #zoom-layer {
+            transform-origin: top left;
+            will-change: transform;
+            display: inline-block;
+        }
+
+        .docx-preview {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 20px;
+        }
+
+        .docx-preview > section.docx {
+            margin: 0;
+            flex: none;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+            background: #fff;
+        }
+
+        .toolbar-btn {
+            height: 32px;
+            min-width: 32px;
+            padding: 0 10px;
+            border: 1px solid #d1d5db;
+            background: #fff;
+            border-radius: 8px;
+            font-size: 14px;
+            line-height: 1;
+        }
+
+        .toolbar-btn:active {
+            background: #f3f4f6;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+<div id="app" class="flex flex-col overflow-hidden">
+
+    <nav class="shrink-0 bg-white border-b border-gray-200 z-20">
+        <div class="px-3 sm:px-6">
+            <div class="flex justify-between h-14 items-center gap-3">
+                <div class="flex items-center min-w-0">
+                    <h1 class="text-sm font-medium truncate">{{ file_name }}</h1>
+                </div>
+
+                <div class="flex items-center gap-2 shrink-0">
+                    <button type="button" class="toolbar-btn" @click="zoomOut()">-</button>
+                    <span class="text-sm w-14 text-center" x-text="Math.round(scale * 100) + '%'"></span>
+                    <button type="button" class="toolbar-btn" @click="zoomIn()">+</button>
+                    <button type="button" class="toolbar-btn" @click="resetZoom()">重置</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div x-show="loading" x-cloak class="flex-1 flex items-center justify-center">
+        <div class="text-center">
+            <svg class="animate-spin h-8 w-8 text-blue-500 mx-auto mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+            </svg>
+            <p class="text-sm text-gray-500">正在加载 Word 文档...</p>
+        </div>
+    </div>
+
+    <div x-show="error" x-cloak class="flex-1 flex items-center justify-center">
+        <div class="text-center px-6">
+            <svg class="w-12 h-12 text-red-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+            </svg>
+            <p class="text-sm text-red-600" x-text="error"></p>
+        </div>
+    </div>
+
+    <div x-show="!loading && !error" x-cloak class="flex-1 overflow-hidden">
+        <div id="viewer-scroll" class="viewer-scroll">
+            <div id="viewer-content" class="viewer-content">
+                <div id="zoom-layer">
+                    <div id="docx-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    function docxViewer() {
+        return {
+            loading: true,
+            error: null,
+
+            scale: 1,
+            minScale: 0.3,
+            maxScale: 3,
+
+            pinchStartDistance: 0,
+            pinchStartScale: 1,
+            isPinching: false,
+            resizeTimer: null,
+
+            async init() {
+                await this.$nextTick();
+                await this.loadFile();
+            },
+
+            isMobile() {
+                return window.innerWidth <= 768;
+            },
+
+            getDefaultScale() {
+                return this.isMobile() ? 0.5 : 1;
+            },
+
+            async loadFile() {
+                try {
+                    const response = await fetch("{{ file_url }}");
+                    if (!response.ok) throw new Error("HTTP " + response.status);
+
+                    const arrayBuffer = await response.arrayBuffer();
+                    const container = document.getElementById("docx-container");
+                    container.innerHTML = "";
+
+                    await docx.renderAsync(arrayBuffer, container, null, {
+                        className: "docx-preview",
+                        inWrapper: true,
+                        ignoreWidth: false,
+                        ignoreHeight: false,
+                        ignoreFonts: false,
+                        breakPages: true,
+                        ignoreLastRenderedPageBreak: true,
+                        experimental: false,
+                    });
+
+                    this.loading = false;
+
+                    this.$nextTick(() => {
+                        this.scale = this.getDefaultScale();
+                        this.applyScale();
+                        this.waitAndLayout();
+
+                        this.bindTouchZoom();
+                        this.bindResize();
+                    });
+                } catch (e) {
+                    console.error("DOCX loading error:", e);
+                    this.error = e.message || "文档加载失败";
+                    this.loading = false;
+                }
+            },
+
+            zoomIn() {
+                this.setScale(this.scale + 0.2);
+            },
+
+            zoomOut() {
+                this.setScale(this.scale - 0.2);
+            },
+
+            resetZoom() {
+                this.scale = this.getDefaultScale();
+                this.applyScale();
+                this.waitAndLayout();
+            },
+
+            setScale(nextScale, centerX = null, centerY = null) {
+                const scroll = document.getElementById("viewer-scroll");
+                const zoomLayer = document.getElementById("zoom-layer");
+                if (!scroll || !zoomLayer) return;
+
+                const oldScale = this.scale;
+                const newScale = Math.max(this.minScale, Math.min(this.maxScale, nextScale));
+                if (newScale === oldScale) return;
+
+                const rect = scroll.getBoundingClientRect();
+                const viewportX = centerX !== null ? centerX - rect.left : rect.width / 2;
+                const viewportY = centerY !== null ? centerY - rect.top : 0;
+
+                const contentX = (scroll.scrollLeft + viewportX) / oldScale;
+                const contentY = (scroll.scrollTop + viewportY) / oldScale;
+
+                this.scale = newScale;
+                this.applyScale();
+                this.updateLayoutMode();
+
+                requestAnimationFrame(() => {
+                    const canScrollX = scroll.scrollWidth > scroll.clientWidth;
+                    if (canScrollX) {
+                        scroll.scrollLeft = Math.max(0, contentX * newScale - viewportX);
+                    } else {
+                        scroll.scrollLeft = 0;
+                    }
+                    scroll.scrollTop = Math.max(0, contentY * newScale - viewportY);
+                });
+            },
+
+            applyScale() {
+                const zoomLayer = document.getElementById("zoom-layer");
+                if (!zoomLayer) return;
+                zoomLayer.style.transform = `scale(${this.scale})`;
+            },
+
+            waitAndLayout() {
+                let count = 0;
+                const maxCount = 30;
+
+                const run = () => {
+                    this.updateLayoutMode();
+                    count += 1;
+
+                    const zoomLayer = document.getElementById("zoom-layer");
+                    if (!zoomLayer) return;
+
+                    const width = zoomLayer.getBoundingClientRect().width;
+                    if (width > 0 || count >= maxCount) return;
+
+                    requestAnimationFrame(run);
+                };
+
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(run);
+                });
+            },
+
+            updateLayoutMode() {
+                const scroll = document.getElementById("viewer-scroll");
+                const content = document.getElementById("viewer-content");
+                const zoomLayer = document.getElementById("zoom-layer");
+                if (!scroll || !content || !zoomLayer) return;
+
+                const scaledWidth = zoomLayer.getBoundingClientRect().width;
+                const availableWidth = scroll.clientWidth - 32; // 左右 padding 16 + 16
+
+                content.classList.remove("is-centered", "is-scrollable");
+
+                if (scaledWidth <= availableWidth) {
+                    content.classList.add("is-centered");
+                    scroll.scrollLeft = 0;
+                } else {
+                    content.classList.add("is-scrollable");
+                    const targetLeft = Math.max(0, (scaledWidth - scroll.clientWidth) / 2);
+                    scroll.scrollLeft = targetLeft;
+                }
+
+                scroll.scrollTop = 0;
+            },
+
+            getTouchDistance(t1, t2) {
+                const dx = t2.clientX - t1.clientX;
+                const dy = t2.clientY - t1.clientY;
+                return Math.sqrt(dx * dx + dy * dy);
+            },
+
+            bindTouchZoom() {
+                const scroll = document.getElementById("viewer-scroll");
+                if (!scroll || scroll.dataset.touchBound === "1") return;
+                scroll.dataset.touchBound = "1";
+
+                scroll.addEventListener("touchstart", (e) => {
+                    if (e.touches.length === 2) {
+                        this.isPinching = true;
+                        this.pinchStartDistance = this.getTouchDistance(e.touches[0], e.touches[1]);
+                        this.pinchStartScale = this.scale;
+                    }
+                }, { passive: true });
+
+                scroll.addEventListener("touchmove", (e) => {
+                    if (e.touches.length === 2 && this.isPinching) {
+                        e.preventDefault();
+
+                        const currentDistance = this.getTouchDistance(e.touches[0], e.touches[1]);
+                        if (!this.pinchStartDistance) return;
+
+                        const ratio = currentDistance / this.pinchStartDistance;
+                        const nextScale = this.pinchStartScale * ratio;
+
+                        const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+                        const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+
+                        this.setScale(nextScale, centerX, centerY);
+                    }
+                }, { passive: false });
+
+                scroll.addEventListener("touchend", (e) => {
+                    if (e.touches.length < 2) {
+                        this.isPinching = false;
+                        this.pinchStartDistance = 0;
+                    }
+                }, { passive: true });
+
+                scroll.addEventListener("touchcancel", () => {
+                    this.isPinching = false;
+                    this.pinchStartDistance = 0;
+                }, { passive: true });
+            },
+
+            bindResize() {
+                if (window.__docxViewerResizeBound) return;
+                window.__docxViewerResizeBound = true;
+
+                window.addEventListener("resize", () => {
+                    clearTimeout(this.resizeTimer);
+                    this.resizeTimer = setTimeout(() => {
+                        this.scale = this.getDefaultScale();
+                        this.applyScale();
+                        this.waitAndLayout();
+                    }, 150);
+                });
+            }
+        }
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,862 @@
+{% extends "base.html" %}
+
+{% block title %}设置 - folark{% endblock %}
+
+{% block content %}
+<div x-data="settingsApp">
+
+    <div class="flex flex-col sm:flex-row gap-6">
+        <!-- 移动端：菜单首页（垂直按钮列表） -->
+        <div x-show="mobileView === 'menu'" class="sm:hidden space-y-2">
+            <button @click="openMobileTab('general')"
+                    class="w-full flex items-center gap-3 px-4 py-3.5 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                <div class="w-9 h-9 rounded-lg flex items-center justify-center bg-blue-50 dark:bg-blue-900/20">
+                    <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                </div>
+                <span class="flex-1 text-left text-sm font-medium text-gray-900 dark:text-gray-100">通用设置</span>
+                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </button>
+            <button @click="openMobileTab('tags')"
+                    class="w-full flex items-center gap-3 px-4 py-3.5 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                <div class="w-9 h-9 rounded-lg flex items-center justify-center bg-green-50 dark:bg-green-900/20">
+                    <svg class="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/>
+                    </svg>
+                </div>
+                <span class="flex-1 text-left text-sm font-medium text-gray-900 dark:text-gray-100">标签管理</span>
+                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </button>
+            <button @click="openMobileTab('plugins')"
+                    class="w-full flex items-center gap-3 px-4 py-3.5 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                <div class="w-9 h-9 rounded-lg flex items-center justify-center bg-purple-50 dark:bg-purple-900/20">
+                    <svg class="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"/>
+                    </svg>
+                </div>
+                <span class="flex-1 text-left text-sm font-medium text-gray-900 dark:text-gray-100">插件管理</span>
+                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </button>
+            <button @click="openMobileTab('batch-jobs')"
+                    class="w-full flex items-center gap-3 px-4 py-3.5 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                <div class="w-9 h-9 rounded-lg flex items-center justify-center bg-amber-50 dark:bg-amber-900/20">
+                    <svg class="w-5 h-5 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                </div>
+                <span class="flex-1 text-left text-sm font-medium text-gray-900 dark:text-gray-100">后台任务</span>
+                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </button>
+            <button @click="openMobileTab('about')"
+                    class="w-full flex items-center gap-3 px-4 py-3.5 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                <div class="w-9 h-9 rounded-lg flex items-center justify-center bg-gray-100 dark:bg-gray-700">
+                    <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <span class="flex-1 text-left text-sm font-medium text-gray-900 dark:text-gray-100">关于</span>
+                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </button>
+
+            <!-- 退出登录（仅移动端一级菜单显示） -->
+            <div class="pt-4 mt-2 border-t border-gray-200 dark:border-gray-700">
+                <button @click="let f=document.createElement('form');f.method='POST';f.action='/api/logout';document.body.appendChild(f);f.submit()"
+                        class="w-full flex items-center gap-3 px-4 py-3.5 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-red-200 dark:border-red-800/50 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                    <div class="w-9 h-9 rounded-lg flex items-center justify-center bg-red-50 dark:bg-red-900/20">
+                        <svg class="w-5 h-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                        </svg>
+                    </div>
+                    <span class="flex-1 text-left text-sm font-medium text-red-600 dark:text-red-400">退出登录</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- PC端：左侧 Tab 导航（仅桌面端显示） -->
+        <nav class="hidden sm:flex sm:flex-col gap-1 sm:w-48 shrink-0">
+            <button @click="switchTab('general')"
+                    class="flex items-center justify-start gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors text-left w-full"
+                    :class="activeTab === 'general'
+                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/50'">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                <span>通用</span>
+            </button>
+            <button @click="switchTab('tags')"
+                    class="flex items-center justify-start gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors text-left w-full"
+                    :class="activeTab === 'tags'
+                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/50'">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/>
+                </svg>
+                <span>标签</span>
+            </button>
+            <button @click="switchTab('plugins')"
+                    class="flex items-center justify-start gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors text-left w-full"
+                    :class="activeTab === 'plugins'
+                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/50'">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"/>
+                </svg>
+                <span>插件</span>
+            </button>
+            <button @click="switchTab('batch-jobs')"
+                    class="flex items-center justify-start gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors text-left w-full"
+                    :class="activeTab === 'batch-jobs'
+                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/50'">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+                <span>任务</span>
+            </button>
+            <button @click="switchTab('about')"
+                    class="flex items-center justify-start gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors text-left w-full"
+                    :class="activeTab === 'about'
+                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/50'">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span>关于</span>
+            </button>
+        </nav>
+
+        <!-- 内容区（PC/移动共用） -->
+        <div class="flex-1 min-w-0 sm:!block" :class="{ 'hidden': mobileView === 'menu' }">
+            <!-- 移动端：子页面返回头 -->
+            <div x-show="mobileView === 'content'" x-cloak class="sm:hidden flex items-center gap-2 mb-4">
+                <button @click="backToMobileMenu()"
+                        class="p-1.5 -ml-1.5 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                </button>
+                <h2 class="text-base font-semibold text-gray-900 dark:text-gray-100" x-text="mobileTabTitle"></h2>
+            </div>
+
+            <!-- ============ 通用设置 Tab ============ -->
+            <div x-show="activeTab === 'general'" x-cloak>
+                <!-- 加载状态 -->
+                <div x-show="settingsLoading" class="flex justify-center py-12">
+                    <span class="spinner text-blue-600 w-8 h-8"></span>
+                </div>
+
+                <div x-show="!settingsLoading" class="space-y-6">
+                    <!-- 保存反馈 -->
+                    <div x-show="settingsMsg" x-cloak x-transition
+                         class="p-3 rounded-lg text-sm"
+                         :class="settingsMsg?.type === 'success' ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800'"
+                         x-text="settingsMsg?.text"></div>
+
+                    <!-- 存储路径（只读） -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+                        <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                            </svg>
+                            存储路径
+                            <span class="text-xs font-normal text-gray-400">（只读，通过 .env 修改）</span>
+                        </h3>
+                        <div class="space-y-3">
+                            <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
+                                <span class="text-sm text-gray-500 dark:text-gray-400 sm:w-32 shrink-0">数据根目录</span>
+                                <span class="text-sm font-mono text-gray-800 dark:text-gray-200 break-all" x-text="settings.data_root || '-'"></span>
+                            </div>
+                            <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
+                                <span class="text-sm text-gray-500 dark:text-gray-400 sm:w-32 shrink-0">文档库目录</span>
+                                <span class="text-sm font-mono text-gray-800 dark:text-gray-200 break-all" x-text="settings.library_root || '-'"></span>
+                            </div>
+                            <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
+                                <span class="text-sm text-gray-500 dark:text-gray-400 sm:w-32 shrink-0">数据库路径</span>
+                                <span class="text-sm font-mono text-gray-800 dark:text-gray-200 break-all" x-text="settings.db_path || '-'"></span>
+                            </div>
+                            <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
+                                <span class="text-sm text-gray-500 dark:text-gray-400 sm:w-32 shrink-0">日志目录</span>
+                                <span class="text-sm font-mono text-gray-800 dark:text-gray-200 break-all" x-text="settings.log_dir || '-'"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 服务配置（可编辑） -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+                        <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2"/>
+                            </svg>
+                            服务配置
+                        </h3>
+                        <div class="space-y-4">
+                            <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
+                                <span class="text-sm text-gray-500 dark:text-gray-400 sm:w-32 shrink-0">服务端口</span>
+                                <span class="text-sm text-gray-800 dark:text-gray-200" x-text="settings.port || '-'"></span>
+                                <span class="text-xs text-gray-400">（重启生效）</span>
+                            </div>
+                            <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
+                                <label class="text-sm text-gray-500 dark:text-gray-400 sm:w-32 shrink-0">日志级别</label>
+                                <select x-model="form.log_level"
+                                        class="text-sm rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-1.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="DEBUG">DEBUG</option>
+                                    <option value="INFO">INFO</option>
+                                    <option value="WARNING">WARNING</option>
+                                    <option value="ERROR">ERROR</option>
+                                </select>
+                            </div>
+                            <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
+                                <label class="text-sm text-gray-500 dark:text-gray-400 sm:w-32 shrink-0">最大上传大小</label>
+                                <div class="flex items-center gap-2">
+                                    <input type="number" x-model.number="form.max_upload_size_mb" min="1" max="10240"
+                                           class="text-sm w-24 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-1.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                    <span class="text-sm text-gray-500">MB</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 导入白名单（可编辑） -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+                        <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                            </svg>
+                            目录导入白名单
+                        </h3>
+                        <div class="space-y-2">
+                            <template x-for="(dir, index) in form.import_dir_whitelist" :key="index">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-sm font-mono text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-gray-700/50 px-3 py-1.5 rounded flex-1" x-text="dir"></span>
+                                    <button @click="removeWhitelistDir(index)" class="text-red-400 hover:text-red-600 p-1" title="删除">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                    </button>
+                                </div>
+                            </template>
+                            <div class="flex items-center gap-2">
+                                <input type="text" x-model="newWhitelistDir" @keydown.enter.prevent="addWhitelistDir()" placeholder="输入目录路径后回车添加"
+                                       class="text-sm flex-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-1.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <button @click="addWhitelistDir()" class="text-blue-600 hover:text-blue-800 text-sm font-medium px-2 py-1">添加</button>
+                            </div>
+                            <p x-show="form.import_dir_whitelist.length === 0" class="text-xs text-gray-400 dark:text-gray-500">未配置白名单（允许任意目录导入）</p>
+                        </div>
+                    </div>
+
+                    <!-- 文件类型扩展名（可编辑） -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+                        <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                            </svg>
+                            文件类型扩展名
+                        </h3>
+                        <div class="space-y-4">
+                            <template x-for="cat in ['document', 'ebook', 'text', 'image', 'audio', 'video', 'archive']" :key="cat">
+                                <div>
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="text-xs font-medium text-gray-600 dark:text-gray-300 uppercase" x-text="cat"></span>
+                                        <button @click="resetSetting(cat.toUpperCase() + '_EXTENSIONS')" class="text-xs text-gray-400 hover:text-red-500" title="恢复默认">重置</button>
+                                    </div>
+                                    <div class="flex flex-wrap gap-1.5 mb-2">
+                                        <template x-for="(ext, idx) in form[cat + '_extensions']" :key="ext">
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                                                <span x-text="ext"></span>
+                                                <button @click="removeExt(cat, idx)" class="text-gray-400 hover:text-red-500">&times;</button>
+                                            </span>
+                                        </template>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <input type="text" x-model="newExt[cat]" @keydown.enter.prevent="addExt(cat)" placeholder=".xxx"
+                                               class="text-xs w-24 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-2 py-1 focus:ring-1 focus:ring-blue-500">
+                                        <button @click="addExt(cat)" class="text-xs text-blue-600 hover:text-blue-800">添加</button>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- 保存按钮 -->
+                    <div class="flex items-center gap-3">
+                        <button @click="saveSettings()" :disabled="settingsSaving"
+                                class="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-medium rounded-lg transition-colors">
+                            <span x-show="!settingsSaving">保存修改</span>
+                            <span x-show="settingsSaving">保存中...</span>
+                        </button>
+                        <span class="text-xs text-gray-400 dark:text-gray-500">保存后需重启服务生效</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============ 标签管理 Tab ============ -->
+            <div x-show="activeTab === 'tags'" x-cloak>
+                <!-- 加载状态 -->
+                <div x-show="tagsLoading" class="flex justify-center py-12">
+                    <span class="spinner text-blue-600 w-8 h-8"></span>
+                </div>
+
+                <!-- 标签列表 -->
+                <div x-show="!tagsLoading" class="space-y-2">
+                    <template x-for="tag in tags" :key="tag.uuid">
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center gap-3">
+                            <!-- 颜色圆点（可点击修改颜色） -->
+                            <div class="relative">
+                                <button @click="colorPickerTagUuid = colorPickerTagUuid === tag.uuid ? null : tag.uuid"
+                                        class="w-5 h-5 rounded-full ring-2 ring-offset-1 ring-gray-200 dark:ring-gray-600 dark:ring-offset-gray-800 cursor-pointer hover:ring-blue-400 transition-all shrink-0"
+                                        :style="'background-color:' + tag.color" title="修改颜色"></button>
+                                <!-- 颜色选择器弹出层 -->
+                                <div x-show="colorPickerTagUuid === tag.uuid" x-cloak
+                                     @click.outside="colorPickerTagUuid = null"
+                                     x-transition
+                                     class="absolute left-0 top-8 z-20 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-2 flex flex-wrap gap-1.5 w-[156px]">
+                                    <template x-for="c in presetColors" :key="c">
+                                        <button @click="pickColor(tag.uuid, c)"
+                                                class="w-6 h-6 rounded-full cursor-pointer hover:scale-110 transition-transform ring-1 ring-gray-200 dark:ring-gray-600"
+                                                :class="tag.color === c ? 'ring-2 ring-blue-500' : ''"
+                                                :style="'background-color:' + c"></button>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <!-- 标签名称（行内编辑） -->
+                            <div class="flex-1 min-w-0">
+                                <div x-show="editingTagUuid !== tag.uuid"
+                                     @click="startEditName(tag)"
+                                     class="group flex items-center gap-1.5 cursor-pointer">
+                                    <span class="text-sm font-medium text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate transition-colors"
+                                          x-text="tag.name"></span>
+                                    <svg class="w-3 h-3 text-gray-300 dark:text-gray-600 group-hover:text-blue-400 transition-colors shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                                    </svg>
+                                </div>
+                                <input x-show="editingTagUuid === tag.uuid" x-cloak
+                                       type="text"
+                                       x-model="editingTagName"
+                                       @keydown.enter.prevent="$el.blur()"
+                                       @keydown.escape.prevent="editingTagUuid = null"
+                                       @blur="saveEditName(tag)"
+                                       x-effect="if (editingTagUuid === tag.uuid) { $nextTick(() => { $el.focus(); $el.select(); }) }"
+                                       class="text-sm font-medium w-full rounded border border-blue-400 dark:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-2 py-0.5 focus:ring-1 focus:ring-blue-500 outline-none">
+                            </div>
+
+                            <!-- 文档数量 -->
+                            <span class="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full shrink-0"
+                                  x-text="tag.doc_count + ' 个文件'"></span>
+
+                            <!-- 删除按钮 -->
+                            <button @click="deleteTag(tag.uuid, tag.name)"
+                                    class="text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors shrink-0 p-1"
+                                    title="删除标签">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- ============ 插件管理 Tab ============ -->
+            <div x-show="activeTab === 'plugins'" x-cloak>
+                <!-- 加载状态 -->
+                <div x-show="pluginsLoading" class="flex justify-center py-12">
+                    <span class="spinner text-blue-600 w-8 h-8"></span>
+                </div>
+
+                <!-- 错误提示 -->
+                <div x-show="pluginsError" x-cloak
+                     class="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400 text-sm"
+                     x-text="pluginsError"></div>
+
+                <!-- 插件卡片列表 -->
+                <div x-show="!pluginsLoading" class="space-y-4">
+                    <template x-for="plugin in plugins" :key="plugin.name">
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                            <!-- 插件头部 -->
+                            <div class="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                                 @click="toggleExpand(plugin.name)">
+                                <div class="flex items-center gap-3 min-w-0">
+                                    <svg class="w-5 h-5 text-gray-400 dark:text-gray-500 transition-transform shrink-0"
+                                         :class="expandedPlugin === plugin.name ? 'rotate-90' : ''"
+                                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                    </svg>
+                                    <div class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+                                         :class="plugin.enabled ? 'bg-blue-100 dark:bg-blue-900/30' : 'bg-gray-100 dark:bg-gray-700'">
+                                        <svg class="w-5 h-5"
+                                             :class="plugin.enabled ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'"
+                                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                  d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"/>
+                                        </svg>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <h3 class="font-semibold text-gray-900 dark:text-gray-100 truncate" x-text="plugin.name"></h3>
+                                            <span class="text-xs text-gray-500 dark:text-gray-400" x-text="'v' + plugin.version"></span>
+                                            <span class="px-2 py-0.5 text-xs font-medium rounded-full"
+                                                  :class="plugin.plugin_type === 'builtin'
+                                                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                                      : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'"
+                                                  x-text="plugin.plugin_type === 'builtin' ? '内置' : '社区'"></span>
+                                        </div>
+                                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                                            <span x-text="plugin.tasks.length"></span> 个功能
+                                            <span class="mx-1">&middot;</span>
+                                            <span x-text="plugin.tasks.filter(t => t.enabled).length"></span> 个已启用
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center shrink-0 ml-4" @click.stop>
+                                    <button @click="openPluginSettings(plugin.name)"
+                                            class="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:text-blue-400 dark:hover:bg-blue-900/20 transition-colors"
+                                            title="插件设置">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- 任务列表（按 handler_type 分组） -->
+                            <div x-show="expandedPlugin === plugin.name"
+                                 x-transition:enter="transition ease-out duration-200"
+                                 x-transition:enter-start="opacity-0 -translate-y-2"
+                                 x-transition:enter-end="opacity-100 translate-y-0"
+                                 x-transition:leave="transition ease-in duration-150"
+                                 x-transition:leave-start="opacity-100 translate-y-0"
+                                 x-transition:leave-end="opacity-0 -translate-y-2"
+                                 class="border-t border-gray-200 dark:border-gray-700">
+                                <template x-for="group in groupedTasks(plugin)" :key="group.type">
+                                    <div>
+                                        <!-- 分组头部 -->
+                                        <div class="flex items-center gap-2 px-4 py-2 cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-700/30 border-b border-gray-100 dark:border-gray-700/50"
+                                             @click="toggleHandlerType(plugin.name, group.type)">
+                                            <svg class="w-4 h-4 text-gray-400 dark:text-gray-500 transition-transform shrink-0"
+                                                 :class="isHandlerTypeExpanded(plugin.name, group.type) ? 'rotate-90' : ''"
+                                                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                            </svg>
+                                            <span class="px-2 py-0.5 text-xs font-mono font-semibold rounded"
+                                                  :class="{
+                                                      'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400': group.type === 'extract',
+                                                      'bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-400': group.type === 'thumbnail',
+                                                      'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400': group.type === 'summarize',
+                                                      'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400': group.type === 'convert',
+                                                      'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400': group.type === 'preview',
+                                                  }"
+                                                  x-text="group.label"></span>
+                                            <span class="text-xs text-gray-400 dark:text-gray-500"
+                                                  x-text="'(' + group.tasks.length + ')'"></span>
+                                        </div>
+                                        <!-- 分组内任务 -->
+                                        <div x-show="isHandlerTypeExpanded(plugin.name, group.type)"
+                                             x-transition>
+                                            <div class="divide-y divide-gray-100 dark:divide-gray-700/50">
+                                                <template x-for="task in group.tasks" :key="task.handler_name">
+                                                    <div class="flex items-center justify-between px-4 py-3"
+                                                         :class="!plugin.enabled ? 'opacity-50' : ''">
+                                                        <div class="min-w-0 flex-1">
+                                                            <div class="flex items-center gap-2 flex-wrap text-xs text-gray-400 dark:text-gray-500">
+                                                                <span class="px-1.5 py-0.5 rounded" 
+                                                                      :class="task.handler_mode === 'instant' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : (task.handler_mode === 'on_demand' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400')"
+                                                                      x-text="task.handler_mode === 'instant' ? '即时' : (task.handler_mode === 'on_demand' ? '按需' : '后台')"></span>
+                                                                <span>
+                                                                    源: <span class="font-mono" x-text="task.source_types ? task.source_types.join(', ') : '-'"></span>
+                                                                </span>
+                                                                <span x-show="task.target_types && task.target_types.length > 0">
+                                                                    &rarr; 目标: <span class="font-mono" x-text="task.target_types ? task.target_types.join(', ') : ''"></span>
+                                                                </span>
+                                                            </div>
+                                                            <p x-show="task.description"
+                                                               class="text-sm text-gray-600 dark:text-gray-400 mt-1"
+                                                               x-text="task.description"></p>
+                                                        </div>
+                                                        <div class="shrink-0 ml-4">
+                                                            <button @click="toggleTask(plugin.name, task.handler_name, !task.enabled)"
+                                                                    :disabled="!plugin.enabled"
+                                                                    class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                                                                    :class="task.enabled && plugin.enabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'"
+                                                                    :aria-checked="task.enabled"
+                                                                    role="switch">
+                                                                <span class="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow-sm"
+                                                                      :class="task.enabled ? 'translate-x-[1.125rem]' : 'translate-x-0.5'"></span>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                                <div x-show="plugin.tasks.length === 0"
+                                     class="px-4 py-6 text-center text-sm text-gray-400 dark:text-gray-500">
+                                    此插件没有注册任何功能
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- 空状态 -->
+                    <div x-show="plugins.length === 0 && !pluginsLoading"
+                         class="flex flex-col items-center justify-center py-16 text-gray-500 dark:text-gray-400">
+                        <svg class="w-16 h-16 mb-4 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"/>
+                        </svg>
+                        <p class="text-lg font-medium">暂无插件</p>
+                        <p class="text-sm mt-1">系统未检测到任何已注册的插件</p>
+                    </div>
+                </div>
+
+                <!-- 插件设置 Modal -->
+                <div x-show="pluginSettingsModal" x-cloak
+                     class="fixed inset-0 z-50 overflow-y-auto"
+                     @keydown.escape.window="closePluginSettings()">
+                    <!-- 遮罩层 -->
+                    <div class="fixed inset-0 bg-gray-500/75 dark:bg-gray-900/80 transition-opacity"
+                         @click="closePluginSettings()"
+                         x-show="pluginSettingsModal"
+                         x-transition:enter="ease-out duration-300"
+                         x-transition:enter-start="opacity-0"
+                         x-transition:enter-end="opacity-100"
+                         x-transition:leave="ease-in duration-200"
+                         x-transition:leave-start="opacity-100"
+                         x-transition:leave-end="opacity-0"></div>
+                    <!-- 弹窗内容 -->
+                    <div class="flex min-h-full items-end sm:items-center justify-center p-0 sm:p-4">
+                        <div class="relative w-full max-w-lg transform overflow-hidden rounded-t-xl sm:rounded-lg
+                                    bg-white dark:bg-gray-800 shadow-xl border border-gray-200 dark:border-gray-700 transition-all"
+                             x-show="pluginSettingsModal"
+                             x-transition:enter="ease-out duration-300"
+                             x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                             x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                             x-transition:leave="ease-in duration-200"
+                             x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+                             x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95">
+                            <div class="bg-white dark:bg-gray-800 rounded-t-xl sm:rounded-lg overflow-hidden max-h-[95vh] sm:max-h-[80vh] flex flex-col">
+                        <!-- 头部 -->
+                        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-blue-100 dark:bg-blue-900/30">
+                                    <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"/>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 class="font-semibold text-gray-900 dark:text-gray-100" x-text="settingsModalPlugin?.name + ' 设置'"></h3>
+                                    <span class="text-xs text-gray-500 dark:text-gray-400" x-text="'v' + (settingsModalPlugin?.version || '')"></span>
+                                </div>
+                            </div>
+                            <button @click="closePluginSettings()" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <!-- 内容区 -->
+                        <div class="overflow-y-auto px-6 py-5 space-y-6 flex-1">
+                            <!-- 启用/禁用 -->
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <span class="text-sm font-medium text-gray-900 dark:text-gray-100">启用插件</span>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">禁用后该插件的所有功能将停止工作</p>
+                                </div>
+                                <button @click="togglePlugin(settingsModalPlugin?.name, !settingsModalPlugin?.enabled)"
+                                        class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                                        :class="settingsModalPlugin?.enabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'">
+                                    <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm"
+                                          :class="settingsModalPlugin?.enabled ? 'translate-x-6' : 'translate-x-1'"></span>
+                                </button>
+                            </div>
+
+                            <!-- 参数配置 -->
+                            <div x-show="hasConfig(settingsModalPlugin || {})">
+                                <div class="flex items-center justify-between mb-3">
+                                    <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100">参数配置</h4>
+                                    <button @click="resetPluginConfig(settingsModalPlugin?.name)"
+                                            class="text-xs text-gray-400 hover:text-orange-500 transition-colors">重置默认</button>
+                                </div>
+                                <div class="space-y-4 bg-gray-50 dark:bg-gray-700/30 rounded-lg p-4">
+                                    <template x-for="[key, defaultVal] in Object.entries(settingsModalPlugin?.default_config || {})" :key="key">
+                                        <div class="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3">
+                                            <label class="text-sm text-gray-600 dark:text-gray-400 sm:w-40 shrink-0 font-mono" x-text="key"></label>
+                                            <!-- Boolean -->
+                                            <template x-if="configValueType(defaultVal) === 'bool'">
+                                                <button @click="setConfigValue(settingsModalPlugin.name, key, !getConfigValue(settingsModalPlugin.name, key))"
+                                                        class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                        :class="getConfigValue(settingsModalPlugin.name, key) ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'">
+                                                    <span class="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow-sm"
+                                                          :class="getConfigValue(settingsModalPlugin.name, key) ? 'translate-x-[1.125rem]' : 'translate-x-0.5'"></span>
+                                                </button>
+                                            </template>
+                                            <!-- Number -->
+                                            <template x-if="configValueType(defaultVal) === 'number'">
+                                                <input type="number"
+                                                       :value="getConfigValue(settingsModalPlugin.name, key)"
+                                                       @input="setConfigValue(settingsModalPlugin.name, key, $event.target.value)"
+                                                       class="text-sm w-32 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-2.5 py-1 focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                                            </template>
+                                            <!-- String -->
+                                            <template x-if="configValueType(defaultVal) === 'string'">
+                                                <input type="text"
+                                                       :value="getConfigValue(settingsModalPlugin.name, key)"
+                                                       @input="setConfigValue(settingsModalPlugin.name, key, $event.target.value)"
+                                                       class="text-sm flex-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-2.5 py-1 focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                                            </template>
+                                            <span class="text-xs text-gray-400 shrink-0" x-text="'默认: ' + defaultVal"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- 底部按钮 -->
+                        <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700 shrink-0">
+                            <button @click="closePluginSettings()"
+                                    class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors">取消</button>
+                            <button @click="savePluginConfig(settingsModalPlugin?.name).then(() => closePluginSettings())"
+                                    :disabled="configSaving[settingsModalPlugin?.name] === true"
+                                    class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 rounded-lg transition-colors">
+                                <span x-show="configSaving[settingsModalPlugin?.name] !== true">保存</span>
+                                <span x-show="configSaving[settingsModalPlugin?.name] === true">保存中...</span>
+                            </button>
+                        </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============ 后台任务 Tab ============ -->
+<div x-show="activeTab === 'batch-jobs'" x-cloak>
+<!-- 加载状态 -->
+<div x-show="batchJobsLoading && batchJobs.length === 0" class="flex justify-center py-12">
+<span class="spinner text-blue-600 w-8 h-8"></span>
+</div>
+
+<!-- 任务列表 -->
+<div x-show="!batchJobsLoading || batchJobs.length > 0" class="space-y-4">
+<template x-for="job in batchJobs" :key="job.uuid">
+<div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+<!-- 任务卡片头部 -->
+<div class="p-4">
+<div class="flex flex-col sm:flex-row sm:items-center gap-3">
+<!-- 任务ID + 状态徽标 (可点击展开详情) -->
+<div class="flex items-center gap-2 flex-wrap min-w-0 flex-1 cursor-pointer" @click="toggleJobDetail(job.uuid)">
+<span class="text-sm font-semibold text-gray-900 dark:text-gray-100" x-text="'任务 #' + job.id"></span>
+<span class="px-2 py-0.5 text-xs font-medium rounded-full shrink-0"
+      :class="{
+          'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300': job.status === 'running',
+          'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300': job.status === 'paused',
+          'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300': job.status === 'completed',
+          'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300': job.status === 'cancelled',
+          'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300': job.status === 'pending',
+          'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300': job.status === 'interrupted',
+      }"
+      x-text="({running:'运行中',paused:'已暂停',completed:'已完成',cancelled:'已取消',pending:'等待中',interrupted:'已中断'})[job.status] || job.status"></span>
+</div>
+<!-- 操作按钮 (独立区域，不在 toggle 点击范围内) -->
+<div class="flex items-center gap-2 shrink-0">
+<div class="flex gap-2" x-show="job.status === 'running'">
+<button type="button" class="px-2.5 py-1 text-xs font-medium rounded-md border border-yellow-300 dark:border-yellow-700 text-yellow-700 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 cursor-pointer"
+        x-on:click.prevent.stop="controlBatchJob(job.uuid, 'pause')">暂停</button>
+<button type="button" class="px-2.5 py-1 text-xs font-medium rounded-md border border-red-300 dark:border-red-700 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer"
+        x-on:click.prevent.stop="controlBatchJob(job.uuid, 'cancel')">取消</button>
+</div>
+<div class="flex gap-2" x-show="job.status === 'paused'">
+<button type="button" class="px-2.5 py-1 text-xs font-medium rounded-md border border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer"
+        x-on:click.prevent.stop="controlBatchJob(job.uuid, 'resume')">恢复</button>
+<button type="button" class="px-2.5 py-1 text-xs font-medium rounded-md border border-red-300 dark:border-red-700 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer"
+        x-on:click.prevent.stop="controlBatchJob(job.uuid, 'cancel')">取消</button>
+</div>
+<div class="flex gap-2" x-show="job.status === 'interrupted'">
+<button type="button" class="px-2.5 py-1 text-xs font-medium rounded-md border border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer"
+        x-on:click.prevent.stop="controlBatchJob(job.uuid, 'resume')">恢复</button>
+<button type="button" class="px-2.5 py-1 text-xs font-medium rounded-md border border-red-300 dark:border-red-700 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer"
+        x-on:click.prevent.stop="controlBatchJob(job.uuid, 'cancel')">取消</button>
+</div>
+</div>
+</div>
+
+<!-- 进度条 + 统计 (可点击展开详情) -->
+<div class="mt-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/30 -mx-1 px-1 rounded transition-colors" @click="toggleJobDetail(job.uuid)">
+<div class="w-full bg-gray-200 dark:bg-gray-700 rounded h-2 overflow-hidden">
+<div class="bg-blue-500 h-2 rounded transition-all duration-300"
+     :style="'width:' + (job.total_items > 0 ? Math.round((job.success_count + job.failed_count) / job.total_items * 100) : 0) + '%'"></div>
+</div>
+
+<!-- 统计文案 + 时间 -->
+<div class="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-xs text-gray-500 dark:text-gray-400">
+<span>
+成功 <span class="text-green-600 dark:text-green-400 font-medium" x-text="job.success_count"></span>
+/ 失败 <span class="text-red-600 dark:text-red-400 font-medium" x-text="job.failed_count"></span>
+/ 总计 <span class="font-medium" x-text="job.total_items"></span> 项
+</span>
+<span class="flex items-center gap-2">
+<span x-text="formatDate(job.created_at)"></span>
+<span x-show="job.completed_at && job.started_at" class="text-gray-400"
+      x-text="'耗时 ' + formatDuration(job.started_at, job.completed_at)"></span>
+</span>
+</div>
+</div>
+</div>
+
+<!-- 展开详情 -->
+<div x-show="expandedJobUuid === job.uuid && batchJobDetail" x-cloak x-transition
+     class="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4 space-y-4">
+
+<!-- Handler 统计表格 -->
+<div x-show="batchJobDetail?.handler_stats?.length > 0">
+<h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">处理器统计</h4>
+<div class="overflow-x-auto">
+<table class="w-full text-sm">
+<thead>
+<tr class="text-left text-xs text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+<th class="py-2 pr-3 font-medium">插件</th>
+<th class="py-2 pr-3 font-medium">处理器</th>
+<th class="py-2 pr-3 font-medium">类型</th>
+<th class="py-2 pr-3 font-medium text-right">成功</th>
+<th class="py-2 pr-3 font-medium text-right">失败</th>
+<th class="py-2 font-medium text-right">跳过</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-gray-100 dark:divide-gray-700/50">
+<template x-for="hs in (batchJobDetail?.handler_stats || [])" :key="hs.plugin_name + ':' + hs.handler_name">
+<tr>
+<td class="py-2 pr-3 font-mono text-gray-700 dark:text-gray-300" x-text="hs.plugin_name"></td>
+<td class="py-2 pr-3 font-mono text-gray-700 dark:text-gray-300" x-text="hs.handler_name"></td>
+<td class="py-2 pr-3">
+<span class="px-1.5 py-0.5 text-xs rounded"
+      :class="{
+          'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400': hs.handler_type === 'extract',
+          'bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-400': hs.handler_type === 'thumbnail',
+          'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400': hs.handler_type === 'summarize',
+      }"
+      x-text="({extract:'文本提取',thumbnail:'缩略图',summarize:'摘要'})[hs.handler_type] || hs.handler_type"></span>
+</td>
+<td class="py-2 pr-3 text-right text-green-600 dark:text-green-400" x-text="hs.success"></td>
+<td class="py-2 pr-3 text-right text-red-600 dark:text-red-400" x-text="hs.failed"></td>
+<td class="py-2 text-right text-gray-500 dark:text-gray-400" x-text="hs.skipped"></td>
+</tr>
+</template>
+</tbody>
+</table>
+</div>
+</div>
+
+<!-- 失败文档列表 -->
+<div x-show="batchJobDetail?.failed_items?.length > 0">
+<h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">失败文档</h4>
+<div class="overflow-x-auto">
+<table class="w-full text-sm">
+<thead>
+<tr class="text-left text-xs text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+<th class="py-2 pr-3 font-medium">文件名</th>
+<th class="py-2 pr-3 font-medium">处理器</th>
+<th class="py-2 font-medium">错误原因</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-gray-100 dark:divide-gray-700/50">
+<template x-for="(fi, fiIdx) in (batchJobDetail?.failed_items || [])" :key="fiIdx">
+<tr x-show="failedItemsExpanded || fiIdx < 5">
+<td class="py-2 pr-3 text-gray-700 dark:text-gray-300 break-all" x-text="fi.file_name"></td>
+<td class="py-2 pr-3 font-mono text-gray-500 dark:text-gray-400" x-text="fi.handler_name"></td>
+<td class="py-2 text-red-600 dark:text-red-400 break-all" x-text="fi.error_message"></td>
+</tr>
+</template>
+</tbody>
+</table>
+<button x-show="(batchJobDetail?.failed_items?.length || 0) > 5 && !failedItemsExpanded"
+        @click="failedItemsExpanded = true"
+        class="mt-2 text-xs text-blue-600 dark:text-blue-400 hover:underline">
+展开全部（共 <span x-text="batchJobDetail?.failed_items?.length || 0"></span> 条）
+</button>
+</div>
+</div>
+
+<!-- 无详情 -->
+<div x-show="!batchJobDetail?.handler_stats?.length && !batchJobDetail?.failed_items?.length"
+     class="text-sm text-gray-400 dark:text-gray-500 text-center py-4">
+暂无详细数据
+</div>
+</div>
+</div>
+</template>
+
+<!-- 空状态 -->
+<div x-show="batchJobs.length === 0 && !batchJobsLoading"
+     class="flex flex-col items-center justify-center py-16 text-gray-500 dark:text-gray-400">
+<svg class="w-16 h-16 mb-4 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+</svg>
+<p class="text-lg font-medium">暂无后台任务</p>
+<p class="text-sm mt-1">批量处理任务将在此显示</p>
+</div>
+</div>
+</div>
+
+            <!-- ============ 关于 Tab ============ -->
+            <div x-show="activeTab === 'about'" x-cloak>
+                <!-- 加载状态 -->
+                <div x-show="aboutLoading" class="flex justify-center py-12">
+                    <span class="spinner text-blue-600 w-8 h-8"></span>
+                </div>
+
+                <div x-show="!aboutLoading" class="space-y-6">
+                    <!-- 应用信息 -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+                        <div class="flex items-center gap-3 mb-4">
+                            <span class="text-2xl font-bold text-blue-600 dark:text-blue-400">folark</span>
+                            <span class="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
+                                  x-text="'v' + about.app_version"></span>
+                        </div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">本地优先的个人文档管理工具</p>
+                    </div>
+
+                    <!-- 数据库统计 -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+                        <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/>
+                            </svg>
+                            数据统计
+                        </h3>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                            <div class="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                                <div class="text-2xl font-bold text-gray-900 dark:text-gray-100" x-text="about.database?.document_count ?? '-'"></div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">文档数</div>
+                            </div>
+                            <div class="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                                <div class="text-2xl font-bold text-gray-900 dark:text-gray-100" x-text="about.database?.plugin_count ?? '-'"></div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">插件数</div>
+                            </div>
+                            <div class="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                                <div class="text-2xl font-bold text-gray-900 dark:text-gray-100" x-text="about.database?.db_size ? formatFileSize(about.database.db_size) : '-'"></div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">数据库大小</div>
+                            </div>
+                            <div class="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                                <div class="text-2xl font-bold text-gray-900 dark:text-gray-100" x-text="about.library?.size ? formatFileSize(about.library.size) : '-'"></div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">文档库大小</div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

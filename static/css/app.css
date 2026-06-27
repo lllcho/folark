@@ -1,0 +1,85 @@
+/* 始终显示滚动条，避免内容高度变化导致视口宽度抖动 */
+html { overflow-y: scroll; }
+
+/* Alpine.js 隐藏规则 */
+[x-cloak] { display: none !important; }
+
+/* Loading spinner */
+.spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    display: inline-block;
+}
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* View mode: Grid */
+.view-grid .document-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+@media (min-width: 640px) {
+    .view-grid .document-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 768px) {
+    .view-grid .document-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 1024px) {
+    .view-grid .document-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* View mode: List */
+.view-list .document-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+/* Card layout per view mode */
+.view-grid .doc-card { flex-direction: column; }
+.view-list .doc-card { flex-direction: row; align-items: center; }
+
+.view-grid .doc-card .card-thumbnail { height: 10rem; width: 100%; }
+.view-list .doc-card .card-thumbnail { height: 3.5rem; width: 3.5rem; min-width: 3.5rem; border-radius: 0.5rem; }
+
+/* Mobile: compact list card thumbnail */
+@media (max-width: 639px) {
+    .view-list .doc-card .card-thumbnail { height: 2.75rem; width: 2.75rem; min-width: 2.75rem; }
+    .view-list .doc-card .card-body { padding: 0.375rem 0.75rem; }
+    .view-list .document-grid { gap: 0.375rem; }
+}
+
+.view-list .doc-card .card-thumbnail img { border-radius: 0.5rem; }
+
+.view-grid .doc-card .card-body { padding: 1rem; flex: 1; }
+.view-list .doc-card .card-body { padding: 0.5rem 1rem; flex: 1; min-width: 0; }
+
+.view-grid .doc-card .card-type-badge { display: block; }
+.view-list .doc-card .card-type-badge { display: none; }
+
+.view-list .doc-card .card-tags { margin-bottom: 0; }
+
+.view-list .doc-card .card-actions { border-top: none; padding-top: 0; padding-right: 0.75rem; }
+.view-grid .doc-card .card-actions-side { display: none; }
+.view-list .doc-card .card-actions-bottom { display: none; }
+.view-list .doc-card .card-actions-side { display: flex; align-items: center; padding-right: 0.75rem; }
+
+/* Select mode: checkbox inline area */
+.view-list .doc-card .card-select-check { width: 2.5rem; min-width: 2.5rem; }
+.view-grid .doc-card .card-select-check { width: 100%; padding: 0.5rem 0 0 0.5rem; justify-content: flex-start; position: absolute; top: 0; left: 0; z-index: 10; }
+.view-grid .doc-card { position: relative; }
+
+/* Hide scrollbar for horizontal scroll containers */
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Mobile bottom nav safe area (iPhone notch) */
+.safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+}

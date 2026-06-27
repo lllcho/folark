@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ file_name }} - 预览</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { darkMode: 'class' }
+    </script>
+    <!-- CodeMirror 6 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@6/lib/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@6/theme/material-darker.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@6/lib/codemirror.min.js"></script>
+    <!-- Marked for Markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@15/marked.min.js"></script>
+    <style>
+        .CodeMirror {
+            height: auto;
+            min-height: calc(100vh - 3.5rem);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .CodeMirror-light {
+            background: #ffffff;
+            color: #1f2937;
+        }
+        .CodeMirror-light .CodeMirror-gutters {
+            background: #f9fafb;
+            border-right: 1px solid #e5e7eb;
+        }
+        .CodeMirror-light .CodeMirror-linenumber {
+            color: #9ca3af;
+        }
+        /* Markdown preview prose styles */
+        #previewContainer {
+            min-height: calc(100vh - 3.5rem);
+        }
+        #previewContainer .prose { max-width: 80ch; margin: 0 auto; }
+        #previewContainer .prose h1 { font-size: 2em; font-weight: 700; margin: 0.67em 0; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.3em; }
+        #previewContainer .prose h2 { font-size: 1.5em; font-weight: 600; margin: 0.83em 0; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.3em; }
+        #previewContainer .prose h3 { font-size: 1.25em; font-weight: 600; margin: 1em 0; }
+        #previewContainer .prose p { margin: 1em 0; line-height: 1.75; }
+        #previewContainer .prose a { color: #2563eb; text-decoration: underline; }
+        #previewContainer .prose code { background: #f3f4f6; padding: 0.2em 0.4em; border-radius: 0.25rem; font-size: 0.875em; }
+        #previewContainer .prose pre { background: #1f2937; color: #e5e7eb; padding: 1em; border-radius: 0.5rem; overflow-x: auto; margin: 1em 0; }
+        #previewContainer .prose pre code { background: transparent; padding: 0; color: inherit; }
+        #previewContainer .prose blockquote { border-left: 4px solid #d1d5db; padding-left: 1em; color: #6b7280; margin: 1em 0; }
+        #previewContainer .prose ul { list-style: disc; padding-left: 2em; margin: 1em 0; }
+        #previewContainer .prose ol { list-style: decimal; padding-left: 2em; margin: 1em 0; }
+        #previewContainer .prose li { margin: 0.25em 0; }
+        #previewContainer .prose table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        #previewContainer .prose th, #previewContainer .prose td { border: 1px solid #d1d5db; padding: 0.5em 0.75em; text-align: left; }
+        #previewContainer .prose th { background: #f9fafb; font-weight: 600; }
+        #previewContainer .prose img { max-width: 100%; border-radius: 0.5rem; }
+        #previewContainer .prose hr { border: none; border-top: 1px solid #e5e7eb; margin: 2em 0; }
+        /* Dark mode prose overrides */
+        .dark #previewContainer .prose { color: #e5e7eb; }
+        .dark #previewContainer .prose h1, .dark #previewContainer .prose h2 { border-bottom-color: #4b5563; }
+        .dark #previewContainer .prose a { color: #60a5fa; }
+        .dark #previewContainer .prose code { background: #374151; color: #e5e7eb; }
+        .dark #previewContainer .prose blockquote { border-left-color: #4b5563; color: #9ca3af; }
+        .dark #previewContainer .prose th { background: #374151; }
+        .dark #previewContainer .prose th, .dark #previewContainer .prose td { border-color: #4b5563; }
+        .dark #previewContainer .prose hr { border-top-color: #4b5563; }
+        /* HTML preview iframe */
+        #htmlPreviewFrame {
+            width: 100%;
+            border: none;
+            min-height: calc(100vh - 3.5rem);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900">
+
+    <!-- 顶部导航栏 -->
+    <nav class="sticky top-0 z-10 bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+        <div class="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-14 items-center">
+                <div class="flex items-center space-x-3 min-w-0">
+                    <h1 class="text-sm font-medium truncate text-gray-900 dark:text-gray-100">{{ file_name }}</h1>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <!-- 源码/预览切换按钮 (仅 .md / .html / .htm) -->
+                    <div id="viewToggle" class="hidden items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
+                        <button id="btnSource" onclick="switchView('source')"
+                                class="px-3 py-1 text-xs font-medium rounded-md transition-colors">
+                            源码
+                        </button>
+                        <button id="btnPreview" onclick="switchView('preview')"
+                                class="px-3 py-1 text-xs font-medium rounded-md transition-colors">
+                            预览
+                        </button>
+                    </div>
+                    <button id="toggleTheme"
+                            class="p-2 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <svg id="sunIcon" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                        </svg>
+                        <svg id="moonIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- CodeMirror 容器 -->
+    <div id="editorContainer">
+        <textarea id="codeEditor" style="display:none;">{{ content | e }}</textarea>
+    </div>
+
+    <!-- 预览容器 -->
+    <div id="previewContainer" class="hidden bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+        <!-- Markdown 预览 -->
+        <div id="mdPreview" class="hidden p-6 sm:p-10 prose"></div>
+        <!-- HTML 预览 -->
+        <iframe id="htmlPreviewFrame" class="hidden" sandbox="allow-same-origin allow-scripts"></iframe>
+    </div>
+
+    <script>
+        // 语言模式映射
+        const modeMap = {
+            '.md': {name: 'markdown', file: 'markdown/markdown'},
+            '.json': {name: 'application/json', file: 'javascript/javascript'},
+            '.py': {name: 'python', file: 'python/python'},
+            '.js': {name: 'javascript', file: 'javascript/javascript'},
+            '.ts': {name: 'javascript', file: 'javascript/javascript'},
+            '.html': {name: 'htmlmixed', file: 'htmlmixed/htmlmixed'},
+            '.htm': {name: 'htmlmixed', file: 'htmlmixed/htmlmixed'},
+            '.css': {name: 'css', file: 'css/css'},
+            '.xml': {name: 'xml', file: 'xml/xml'},
+            '.yaml': {name: 'yaml', file: 'yaml/yaml'},
+            '.yml': {name: 'yaml', file: 'yaml/yaml'},
+            '.sql': {name: 'sql', file: 'sql/sql'},
+            '.sh': {name: 'shell', file: 'shell/shell'},
+            '.c': {name: 'text/x-csrc', file: 'clike/clike'},
+            '.cpp': {name: 'text/x-c++src', file: 'clike/clike'},
+            '.h': {name: 'text/x-csrc', file: 'clike/clike'},
+            '.java': {name: 'text/x-java', file: 'clike/clike'},
+            '.go': {name: 'go', file: 'go/go'},
+            '.rs': {name: 'rust', file: 'rust/rust'},
+        };
+
+        const fileType = '{{ file_type | e }}';
+        const rawContent = document.getElementById('codeEditor').value;
+        const previewableTypes = ['.md', '.html', '.htm'];
+        const isPreviewable = previewableTypes.includes(fileType);
+        let currentView = isPreviewable ? 'preview' : 'source';
+        let darkMode = localStorage.getItem('darkMode') === 'true';
+
+        function applyTheme(isDark) {
+            darkMode = isDark;
+            localStorage.setItem('darkMode', isDark);
+            document.documentElement.classList.toggle('dark', isDark);
+            document.getElementById('sunIcon').classList.toggle('hidden', !isDark);
+            document.getElementById('moonIcon').classList.toggle('hidden', isDark);
+            if (window.cmEditor) {
+                window.cmEditor.setOption('theme', isDark ? 'material-darker' : 'default');
+                const wrapper = window.cmEditor.getWrapperElement();
+                wrapper.classList.toggle('CodeMirror-light', !isDark);
+            }
+            // Update HTML iframe theme
+            if (isPreviewable && (fileType === '.html' || fileType === '.htm')) {
+                updateHtmlIframeTheme(isDark);
+            }
+        }
+
+        function updateHtmlIframeTheme(isDark) {
+            const iframe = document.getElementById('htmlPreviewFrame');
+            if (iframe && iframe.contentDocument && iframe.contentDocument.body) {
+                iframe.contentDocument.body.style.backgroundColor = isDark ? '#111827' : '#ffffff';
+                iframe.contentDocument.body.style.color = isDark ? '#e5e7eb' : '#1f2937';
+            }
+        }
+
+        // 切换源码/预览视图
+        function switchView(view) {
+            currentView = view;
+            const editorContainer = document.getElementById('editorContainer');
+            const previewContainer = document.getElementById('previewContainer');
+            const btnSource = document.getElementById('btnSource');
+            const btnPreview = document.getElementById('btnPreview');
+
+            const activeClasses = 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm';
+            const inactiveClasses = 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300';
+
+            if (view === 'source') {
+                editorContainer.classList.remove('hidden');
+                previewContainer.classList.add('hidden');
+                btnSource.className = 'px-3 py-1 text-xs font-medium rounded-md transition-colors ' + activeClasses;
+                btnPreview.className = 'px-3 py-1 text-xs font-medium rounded-md transition-colors ' + inactiveClasses;
+                if (window.cmEditor) window.cmEditor.refresh();
+            } else {
+                editorContainer.classList.add('hidden');
+                previewContainer.classList.remove('hidden');
+                btnSource.className = 'px-3 py-1 text-xs font-medium rounded-md transition-colors ' + inactiveClasses;
+                btnPreview.className = 'px-3 py-1 text-xs font-medium rounded-md transition-colors ' + activeClasses;
+                renderPreview();
+            }
+        }
+
+        function renderPreview() {
+            const mdPreview = document.getElementById('mdPreview');
+            const htmlFrame = document.getElementById('htmlPreviewFrame');
+
+            if (fileType === '.md') {
+                mdPreview.classList.remove('hidden');
+                htmlFrame.classList.add('hidden');
+                mdPreview.innerHTML = marked.parse(rawContent);
+            } else if (fileType === '.html' || fileType === '.htm') {
+                mdPreview.classList.add('hidden');
+                htmlFrame.classList.remove('hidden');
+                htmlFrame.srcdoc = rawContent;
+                // Auto-resize iframe and apply theme after load
+                htmlFrame.onload = function() {
+                    try {
+                        const h = htmlFrame.contentDocument.documentElement.scrollHeight;
+                        htmlFrame.style.height = Math.max(h, window.innerHeight - 56) + 'px';
+                        updateHtmlIframeTheme(darkMode);
+                    } catch(e) {}
+                };
+            }
+        }
+
+        document.getElementById('toggleTheme').addEventListener('click', function() {
+            applyTheme(!darkMode);
+        });
+
+        // 初始化主题
+        document.documentElement.classList.toggle('dark', darkMode);
+
+        function initEditor(mode) {
+            const config = {
+                lineNumbers: true,
+                readOnly: true,
+                theme: darkMode ? 'material-darker' : 'default',
+                lineWrapping: true,
+                viewportMargin: Infinity,
+            };
+            if (mode) {
+                config.mode = mode.name;
+            }
+            window.cmEditor = CodeMirror.fromTextArea(document.getElementById('codeEditor'), config);
+            if (!darkMode) {
+                window.cmEditor.getWrapperElement().classList.add('CodeMirror-light');
+            }
+        }
+
+        // 加载语言模式并初始化
+        const modeInfo = modeMap[fileType];
+        if (modeInfo) {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/codemirror@5/mode/' + modeInfo.file + '.min.js';
+            script.onload = function() { initEditor(modeInfo); };
+            script.onerror = function() { initEditor(null); };
+            document.head.appendChild(script);
+        } else {
+            initEditor(null);
+        }
+
+        // 初始化图标状态
+        applyTheme(darkMode);
+
+        // 初始化源码/预览切换
+        if (isPreviewable) {
+            document.getElementById('viewToggle').classList.remove('hidden');
+            document.getElementById('viewToggle').classList.add('flex');
+            switchView('preview');
+        }
+    </script>
+</body>
+</html>

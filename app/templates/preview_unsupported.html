@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ file_name }} - 暂不支持预览</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { darkMode: 'class' }
+    </script>
+</head>
+<body class="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-200">
+
+    <div class="flex items-center justify-center min-h-screen">
+        <div class="text-center px-6 py-12">
+            <!-- 图标 -->
+            <div class="mx-auto w-16 h-16 mb-6 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                <svg class="w-8 h-8 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+            </div>
+
+            <!-- 文件名 -->
+            <h1 class="text-lg font-medium mb-2">{{ file_name }}</h1>
+
+            <!-- 提示信息 -->
+            <p class="text-gray-500 dark:text-gray-400 mb-1">
+                文件类型：<span class="font-mono text-sm">{{ file_type }}</span>
+            </p>
+            <p class="text-gray-500 dark:text-gray-400 mb-8">暂不支持预览该类型文件</p>
+
+            <!-- 关闭按钮 -->
+            <button onclick="window.close()"
+                    class="px-6 py-2.5 text-sm font-medium rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                关闭
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // 暗色模式同步
+        const darkMode = localStorage.getItem('darkMode') === 'true';
+        if (darkMode) {
+            document.documentElement.classList.add('dark');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,71 @@
+# ── 运行时数据 ──────────────────────────────────────────
+/data
+/logs
+
+# ── 虚拟环境 ────────────────────────────────────────────
+.venv
+venv/
+.env/
+.envs/
+env/
+env/
+.venv/
+virtualenv/
+
+# ── Python 字节码 ───────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# ── 环境变量（可能包含敏感信息） ─────────────────────────
+.env
+*.env
+!.env.example
+
+# ── 构建产物 ────────────────────────────────────────────
+dist/
+build/
+*.egg-info/
+*.egg
+.eggs/
+
+# ── IDE / 编辑器 ────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-workspace
+*.sublime-project
+
+# ── OS 文件 ─────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ── 测试与覆盖率 ────────────────────────────────────────
+.coverage
+.coverage.*
+coverage/
+.coverage.*
+htmlcov/
+.pytest_cache/
+
+# ── 日志 ────────────────────────────────────────────────
+*.log
+
+# ── Docker ──────────────────────────────────────────────
+.docker/
+
+# ── 杂项 ────────────────────────────────────────────────
+mypy_cache/
+.ruff_cache/
+*.pyc
+.pytest_cache/
+node_modules/

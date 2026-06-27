@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN" x-data="excelViewer()">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} - Excel 预览</title>
+    <link rel="icon" type="image/svg+xml" href="/static/icons/xlsx.svg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        html, body { height: 100%; margin: 0; }
+        #app { height: 100dvh; }
+
+        /* Sticky header */
+        .table-wrap thead th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+<div id="app" class="flex flex-col overflow-hidden">
+
+    <!-- 顶部工具栏 -->
+    <nav class="shrink-0 bg-white border-b border-gray-200 z-20">
+        <div class="px-4 sm:px-6">
+            <div class="flex justify-between h-14 items-center">
+                <div class="flex items-center space-x-3 min-w-0">
+                    <h1 class="text-sm font-medium truncate">{{ file_name }}</h1>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 工作表标签栏 -->
+    <div x-show="sheetNames.length > 1" x-cloak
+         class="shrink-0 bg-white border-b border-gray-200 overflow-x-auto z-10">
+        <div class="flex px-4 sm:px-6 space-x-1 py-1.5">
+            <template x-for="name in sheetNames" :key="name">
+                <button @click="switchSheet(name)"
+                        :class="activeSheet === name
+                            ? 'bg-emerald-100 text-emerald-700 border-emerald-400'
+                            : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'"
+                        class="px-3 py-1.5 text-xs font-medium rounded border whitespace-nowrap transition-colors"
+                        x-text="name">
+                </button>
+            </template>
+        </div>
+    </div>
+
+    <!-- Loading 状态 -->
+    <div x-show="loading" x-cloak class="flex-1 flex items-center justify-center">
+        <div class="text-center">
+            <svg class="animate-spin h-8 w-8 text-emerald-500 mx-auto mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+            </svg>
+            <p class="text-sm text-gray-500">正在加载 Excel 文件...</p>
+        </div>
+    </div>
+
+    <!-- 错误提示 -->
+    <div x-show="error" x-cloak class="flex-1 flex items-center justify-center">
+        <div class="text-center px-6">
+            <svg class="w-12 h-12 text-red-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+            </svg>
+            <p class="text-sm text-red-600" x-text="error"></p>
+        </div>
+    </div>
+
+    <!-- 表格区域 -->
+    <div x-show="!loading && !error" x-cloak class="flex-1 overflow-auto table-wrap">
+        <!-- 空数据提示 -->
+        <div x-show="tableData.length === 0" class="flex items-center justify-center h-full">
+            <p class="text-sm text-gray-400">此工作表无数据</p>
+        </div>
+
+        <table x-show="tableData.length > 0" class="w-full border-collapse text-sm">
+            <thead x-show="tableData.length > 0">
+                <tr>
+                    <template x-for="(cell, ci) in (tableData[0] || [])" :key="ci">
+                        <th class="px-3 py-2 text-left font-semibold border border-gray-200 bg-gray-100 text-gray-700 whitespace-nowrap"
+                            x-text="cell ?? ''"></th>
+                    </template>
+                </tr>
+            </thead>
+            <tbody>
+                <template x-for="(row, ri) in tableData.slice(1)" :key="ri">
+                    <tr :class="ri % 2 === 0 ? 'bg-white' : 'bg-gray-50'"
+                        class="hover:bg-emerald-50/50 transition-colors">
+                        <template x-for="(cell, ci) in row" :key="ci">
+                            <td class="px-3 py-1.5 border border-gray-200 whitespace-nowrap"
+                                x-text="cell ?? ''"></td>
+                        </template>
+                    </tr>
+                </template>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 底部状态栏 -->
+    <div x-show="!loading && !error" x-cloak
+         class="shrink-0 bg-white border-t border-gray-200 z-10">
+        <div class="px-4 sm:px-6 py-2 flex items-center justify-between">
+            <span class="text-xs text-gray-500" x-text="activeSheet"></span>
+            <span class="text-xs text-gray-500"
+                  x-text="rowCount + ' 行 × ' + colCount + ' 列'"></span>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    function excelViewer() {
+        return {
+            loading: true,
+            error: null,
+            workbook: null,
+            sheetNames: [],
+            activeSheet: '',
+            tableData: [],
+            rowCount: 0,
+            colCount: 0,
+
+            init() {
+                this.$nextTick(() => this.loadFile());
+            },
+
+            async loadFile() {
+                try {
+                    const response = await fetch("{{ file_url }}");
+                    if (!response.ok) throw new Error('HTTP ' + response.status);
+
+                    const arrayBuffer = await response.arrayBuffer();
+                    this.workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
+                    this.sheetNames = this.workbook.SheetNames;
+
+                    if (this.sheetNames.length === 0) {
+                        this.error = '此文件不包含任何工作表';
+                        return;
+                    }
+
+                    this.activeSheet = this.sheetNames[0];
+                    this.renderSheet(this.activeSheet);
+                } catch (err) {
+                    console.error('Excel loading error:', err);
+                    this.error = '文件加载失败：' + err.message;
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            switchSheet(name) {
+                if (this.activeSheet === name) return;
+                this.activeSheet = name;
+                this.renderSheet(name);
+            },
+
+            renderSheet(name) {
+                const sheet = this.workbook.Sheets[name];
+                if (!sheet) {
+                    this.tableData = [];
+                    this.rowCount = 0;
+                    this.colCount = 0;
+                    return;
+                }
+
+                const data = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+                if (data.length === 0) {
+                    this.tableData = [];
+                    this.rowCount = 0;
+                    this.colCount = 0;
+                    return;
+                }
+
+                // 统一列数：找出最大列数，补齐短行
+                const maxCols = data.reduce((max, row) => Math.max(max, row.length), 0);
+                this.tableData = data.map(row => {
+                    const padded = Array.from({ length: maxCols }, (_, i) => row[i] ?? '');
+                    return padded;
+                });
+
+                this.rowCount = data.length - 1; // 不含表头
+                this.colCount = maxCols;
+            },
+
+        }
+    }
+</script>
+</body>
+</html>

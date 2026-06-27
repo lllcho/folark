@@ -1,0 +1,36 @@
+# Git
+.git
+.gitignore
+
+# 数据
+data/
+logs/
+
+# 虚拟环境
+.venv
+venv/
+.env
+.envs/
+
+# Python 缓存
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Compose 文件（构建时不需要，避免引起上下文变更）
+docker-compose*.yml
+.dockerignore
+
+# 测试
+.pytest_cache/
+.coverage
+htmlcov/

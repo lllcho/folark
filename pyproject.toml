@@ -1,0 +1,53 @@
+[project]
+name = "folark"
+version = "0.1.0"
+description = "本地优先的个人文档管理工具"
+readme = "README.md"
+license = {text = "AGPL-3.0"}
+authors = [
+    {name = "folark contributors"},
+]
+requires-python = ">=3.12"
+dependencies = [
+    "litestar[jinja,standard]",
+    "uvicorn[standard]",
+    "aiosqlite",
+    "chardet",
+    "pydantic",
+    "pydantic-settings",
+    "pymupdf",
+    "python-docx",
+    "openpyxl",
+    "python-pptx",
+    "ebooklib",
+    "beautifulsoup4",
+    "Pillow",
+    "python-multipart",
+    "py7zr",
+    "rarfile",
+]
+
+[project.urls]
+Homepage = "https://github.com/lllcho/folark"
+Repository = "https://github.com/lllcho/folark"
+Issues = "https://github.com/lllcho/folark/issues"
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "ruff",
+]
+
+[tool.ruff]
+line-length = 120
+select = [
+    "E",   # pycodestyle errors
+    "F",   # Pyflakes
+    "W",   # pycodestyle warnings
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+]

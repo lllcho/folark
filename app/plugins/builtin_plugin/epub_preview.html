@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="zh-CN" x-data="epubReader()" :class="{ 'dark': darkMode }">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>EPUB 阅读器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { darkMode: 'class' }</script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
+    <style>
+        [x-cloak] {
+            display: none !important;
+        }
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+        }
+
+        body {
+            min-height: 100dvh;
+        }
+
+        #app {
+            height: 100dvh;
+        }
+
+        #viewer {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        #viewer iframe {
+            border: none !important;
+            width: 100% !important;
+            height: 100% !important;
+            display: block !important;
+        }
+
+        .safe-top {
+            padding-top: env(safe-area-inset-top);
+        }
+
+        .safe-bottom {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .toolbar-glass {
+            background: rgba(255, 255, 255, .95);
+            backdrop-filter: blur(10px);
+        }
+
+        .dark .toolbar-glass {
+            background: rgba(31, 41, 55, .95);
+            backdrop-filter: blur(10px);
+        }
+
+        input[type="range"] {
+            accent-color: #10b981;
+        }
+
+        .color-swatch {
+            width: 28px;
+            height: 28px;
+            border-radius: 9999px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.15s;
+            flex-shrink: 0;
+        }
+
+        .color-swatch:hover {
+            transform: scale(1.12);
+        }
+
+        .color-swatch.active {
+            border-color: #10b981;
+            box-shadow: 0 0 0 2px rgba(16, 185, 129, .35);
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-200">
+    <div id="app" class="flex flex-col overflow-hidden">
+
+        <!-- 顶部导航栏 -->
+        <nav x-show="uiVisible" x-cloak x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0 -translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"
+            x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 translate-y-0"
+            x-transition:leave-end="opacity-0 -translate-y-2"
+            class="shrink-0 toolbar-glass safe-top border-b border-gray-200 dark:border-gray-700 z-30">
+            <div class="px-4 sm:px-6">
+                <div class="flex justify-between h-14 items-center">
+                    <div class="flex items-center space-x-3 min-w-0">
+                        <h1 class="text-sm font-medium truncate" x-text="bookTitle || '加载中...'"></h1>
+                    </div>
+                    <div class="flex items-center space-x-1 sm:space-x-2">
+                        <!-- 目录 -->
+                        <button @click="tocOpen = !tocOpen; settingsOpen = false"
+                            class="p-2 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                            title="目录">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 6h16M4 12h16M4 18h7" />
+                            </svg>
+                        </button>
+                        <!-- 设置 -->
+                        <button @click="settingsOpen = !settingsOpen; tocOpen = false"
+                            class="p-2 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                            title="阅读设置">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                        </button>
+                        <!-- 全屏 -->
+                        <button @click="toggleFullscreen()"
+                            class="p-2 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                            :title="isFullscreen ? '退出全屏' : '进入全屏'">
+                            <svg x-show="!isFullscreen" x-cloak class="w-5 h-5" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" />
+                            </svg>
+                            <svg x-show="isFullscreen" x-cloak class="w-5 h-5" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M15 9h4.5M15 9V4.5M15 9l5.25-5.25M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 15h4.5M15 15v4.5M15 15l5.25 5.25" />
+                            </svg>
+                        </button>
+                        <!-- 暗色 -->
+                        <button @click="toggleDarkMode()"
+                            class="p-2 rounded-lg text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                            title="切换明暗模式">
+                            <svg x-show="darkMode" x-cloak class="w-5 h-5" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                            </svg>
+                            <svg x-show="!darkMode" x-cloak class="w-5 h-5" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- 主内容区 -->
+        <div class="flex-1 overflow-hidden relative">
+            <!-- 遮罩 -->
+            <div x-show="tocOpen || settingsOpen" x-cloak @click="tocOpen = false; settingsOpen = false"
+                x-transition.opacity class="absolute inset-0 bg-black/30 z-20"></div>
+
+            <!-- 目录抽屉 -->
+            <aside x-show="tocOpen" x-cloak x-transition:enter="transition ease-out duration-200"
+                x-transition:enter-start="-translate-x-full" x-transition:enter-end="translate-x-0"
+                x-transition:leave="transition ease-in duration-150" x-transition:leave-start="translate-x-0"
+                x-transition:leave-end="-translate-x-full" class="absolute left-0 top-0 bottom-0 w-[82%] sm:w-80 z-30 bg-white dark:bg-gray-800
+                      border-r border-gray-200 dark:border-gray-700 overflow-y-auto shadow-xl">
+                <div class="p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h2 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">目录
+                        </h2>
+                        <button @click="tocOpen = false"
+                            class="p-1 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                    <ul class="space-y-1">
+                        <template x-for="(item, idx) in toc" :key="idx">
+                            <li>
+                                <button @click="goToChapter(item.href)" class="w-full text-left px-3 py-2 text-sm rounded-md
+                                           hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors break-words"
+                                    :title="item.label" x-text="item.label || ('章节 ' + (idx + 1))">
+                                </button>
+                            </li>
+                        </template>
+                    </ul>
+                    <p x-show="toc.length === 0" class="text-sm text-gray-400 dark:text-gray-500">无目录信息</p>
+                </div>
+            </aside>
+
+            <!-- 设置抽屉 -->
+            <aside x-show="settingsOpen" x-cloak x-transition:enter="transition ease-out duration-200"
+                x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0"
+                x-transition:leave="transition ease-in duration-150" x-transition:leave-start="translate-x-0"
+                x-transition:leave-end="translate-x-full" class="absolute right-0 top-0 bottom-0 w-[86%] sm:w-96 z-30 bg-white dark:bg-gray-800
+                      border-l border-gray-200 dark:border-gray-700 overflow-y-auto shadow-xl">
+                <div class="p-4 space-y-6">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">阅读设置
+                        </h2>
+                        <button @click="settingsOpen = false"
+                            class="p-1 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- 阅读模式 -->
+                    <div>
+                        <div class="flex justify-between text-sm mb-2">
+                            <span>阅读模式</span>
+                            <span x-text="readMode === 'paginated' ? '分页' : '滚动'"></span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button @click="switchReadMode('paginated')" :class="readMode === 'paginated'
+                                    ? 'bg-emerald-600 text-white'
+                                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200'"
+                                class="px-4 py-2 rounded-lg text-sm transition-colors">分页</button>
+                            <button @click="switchReadMode('scrolled')" :class="readMode === 'scrolled'
+                                    ? 'bg-emerald-600 text-white'
+                                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200'"
+                                class="px-4 py-2 rounded-lg text-sm transition-colors">滚动</button>
+                        </div>
+                    </div>
+
+                    <!-- 字体大小 -->
+                    <div>
+                        <div class="flex justify-between text-sm mb-2">
+                            <span>字体大小</span>
+                            <span x-text="fontSize + 'px'"></span>
+                        </div>
+                        <input type="range" min="14" max="32" step="1" x-model.number="fontSize"
+                            @change="onSettingChange()" class="w-full">
+                    </div>
+
+                    <!-- 行高 -->
+                    <div>
+                        <div class="flex justify-between text-sm mb-2">
+                            <span>行高</span>
+                            <span x-text="lineHeight.toFixed(1)"></span>
+                        </div>
+                        <input type="range" min="1.4" max="2.4" step="0.1" x-model.number="lineHeight"
+                            @change="onSettingChange()" class="w-full">
+                    </div>
+
+                    <!-- 页边距 -->
+                    <div>
+                        <div class="flex justify-between text-sm mb-2">
+                            <span>页边距</span>
+                            <span x-text="sidePadding + 'px'"></span>
+                        </div>
+                        <input type="range" min="8" max="72" step="2" x-model.number="sidePadding"
+                            @change="onSettingChange()" class="w-full">
+                        <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                            移动端会自动限制最大边距，避免正文过窄。
+                        </p>
+                    </div>
+
+                    <!-- 字体颜色 -->
+                    <div>
+                        <div class="flex justify-between text-sm mb-2">
+                            <span>字体颜色</span>
+                            <button x-show="customFontColor" @click="resetFontColor()"
+                                class="text-xs text-emerald-600 dark:text-emerald-400 hover:underline">重置</button>
+                        </div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <!-- 跟随模式默认色 -->
+                            <button @click="resetFontColor()" class="color-swatch"
+                                :class="{ 'active': !customFontColor }"
+                                :style="'background:' + (darkMode ? '#d1d5db' : '#1f2937')" title="默认（跟随明暗模式）"></button>
+                            <template x-for="c in fontColorPresets" :key="c.value">
+                                <button @click="setFontColor(c.value)" class="color-swatch"
+                                    :class="{ 'active': customFontColor === c.value }" :style="'background:' + c.value"
+                                    :title="c.label"></button>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- 背景色 -->
+                    <div>
+                        <div class="flex justify-between text-sm mb-2">
+                            <span>背景色</span>
+                            <button x-show="customBgColor" @click="resetBgColor()"
+                                class="text-xs text-emerald-600 dark:text-emerald-400 hover:underline">重置</button>
+                        </div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <button @click="resetBgColor()" class="color-swatch" :class="{ 'active': !customBgColor }"
+                                :style="'background:' + (darkMode ? '#111827' : '#ffffff')" title="默认（跟随明暗模式）"></button>
+                            <template x-for="c in bgColorPresets" :key="c.value">
+                                <button @click="setBgColor(c.value)" class="color-swatch"
+                                    :class="{ 'active': customBgColor === c.value }" :style="'background:' + c.value"
+                                    :title="c.label"></button>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- 恢复默认 -->
+                    <div class="pt-1">
+                        <button @click="resetSettings()" class="w-full px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-700
+                                   hover:bg-gray-200 dark:hover:bg-gray-600 text-sm transition-colors">
+                            恢复默认
+                        </button>
+                    </div>
+
+                    <div class="text-xs text-gray-400 dark:text-gray-500 leading-6 space-y-1">
+                        <p class="font-medium text-gray-500 dark:text-gray-400">说明</p>
+                        <p>• 分页模式：适合传统翻页阅读体验，左右点击/键盘翻页。</p>
+                        <p>• 滚动模式：手机原生滑动，桌面支持鼠标拖拽。</p>
+                        <p>• 自定义颜色会覆盖明暗模式的默认配色。</p>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- 桌面端左右翻页箭头（仅分页模式） -->
+            <button @click="prev()" x-show="readMode === 'paginated' && uiVisible" x-cloak class="hidden sm:flex absolute left-3 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full
+                       bg-white/85 dark:bg-gray-700/85 shadow hover:bg-white dark:hover:bg-gray-600
+                       transition-colors" title="上一页">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                </svg>
+            </button>
+            <button @click="next()" x-show="readMode === 'paginated' && uiVisible" x-cloak class="hidden sm:flex absolute right-3 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full
+                       bg-white/85 dark:bg-gray-700/85 shadow hover:bg-white dark:hover:bg-gray-600
+                       transition-colors" title="下一页">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+            </button>
+
+            <!-- viewer 容器 -->
+            <div class="w-full h-full relative">
+                <div id="viewer" class="w-full h-full"></div>
+
+                <!-- 分页模式：左1/4翻上页，右1/4翻下页，中间切换 UI -->
+                <template x-if="readMode === 'paginated'">
+                    <div class="absolute inset-0 z-[5] flex pointer-events-auto">
+                        <div class="w-1/4 h-full cursor-pointer" @click="prev()"></div>
+                        <div class="flex-1 h-full cursor-pointer" @click="toggleUI()"></div>
+                        <div class="w-1/4 h-full cursor-pointer" @click="next()"></div>
+                    </div>
+                </template>
+
+
+            </div>
+        </div>
+
+        <!-- 底部状态栏 -->
+        <div x-show="uiVisible" x-cloak x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"
+            x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 translate-y-0"
+            x-transition:leave-end="opacity-0 translate-y-2"
+            class="shrink-0 toolbar-glass safe-bottom border-t border-gray-200 dark:border-gray-700 z-30">
+            <div class="px-4 sm:px-6 py-2">
+                <div class="flex items-center justify-between gap-3">
+                    <span class="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[40%]"
+                        x-text="currentChapter || '加载中...'"></span>
+
+                    <div class="flex-1 flex items-center gap-2">
+                        <!-- 进度条：外层扩大可点击区域 -->
+                        <div class="flex-1 relative py-2 cursor-pointer"
+                             @mousedown.prevent="startSeekDrag($event)"
+                             @touchstart.passive="startSeekDrag($event)"
+                             @mousemove="trackHover($event)"
+                             @mouseenter="seekHover = true"
+                             @mouseleave="seekHover = false">
+                            <!-- 轨道 -->
+                            <div class="relative w-full rounded-full transition-all duration-150"
+                                 :class="seekDragging || seekHover ? 'h-2' : 'h-1.5'">
+                                <!-- 背景轨道 -->
+                                <div class="absolute inset-0 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
+                                <!-- 已播放进度 -->
+                                <div class="absolute left-0 top-0 bottom-0 bg-emerald-500 rounded-full"
+                                     :class="seekDragging ? '' : 'transition-all duration-300'"
+                                     :style="'width:' + (seekDragging ? seekDisplayPct : progress) + '%'"></div>
+                                <!-- 悬停预览位置线 -->
+                                <div x-show="seekHover && !seekDragging" x-cloak
+                                     class="absolute top-0 bottom-0 w-0.5 bg-gray-400 dark:bg-gray-500 rounded-full opacity-60"
+                                     :style="'left:' + hoverProgress + '%'"></div>
+                                <!-- 拖动手柄（在轨道内部，继承轨道宽度） -->
+                                <div class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 pointer-events-none"
+                                     :class="seekDragging
+                                         ? 'scale-110'
+                                         : (seekHover ? 'scale-100 opacity-100 transition-all duration-150' : 'scale-0 opacity-0 transition-all duration-150')"
+                                     :style="'left:' + (seekDragging ? seekDisplayPct : progress) + '%'">
+                                    <div class="w-4 h-4 rounded-full bg-emerald-500 shadow-md ring-2 ring-white dark:ring-gray-800"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- 百分比文字 -->
+                        <span class="text-xs tabular-nums w-9 text-right transition-colors"
+                              :class="seekDragging
+                                  ? 'text-emerald-600 dark:text-emerald-400 font-medium'
+                                  : 'text-gray-500 dark:text-gray-400'"
+                              x-text="(seekDragging ? seekDisplayPct : progress) + '%'"></span>
+                    </div>
+
+                    <!-- 移动端翻页按钮（仅分页模式显示） -->
+                    <div x-show="readMode === 'paginated'" x-cloak class="sm:hidden flex items-center gap-1">
+                        <button @click="prev()"
+                            class="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                            </svg>
+                        </button>
+                        <button @click="next()"
+                            class="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function epubReader() {
+
+            const STORAGE_PREFIX = 'epubReader:';
+            const FONT_COLOR_PRESETS = [
+                { label: '深灰', value: '#374151' },
+                { label: '暖棕', value: '#92400e' },
+                { label: '深绿', value: '#065f46' },
+                { label: '深蓝', value: '#1e3a5f' },
+            ];
+            const BG_COLOR_PRESETS = [
+                { label: '米黄（护眼）', value: '#fef3c7' },
+                { label: '浅绿', value: '#ecfdf5' },
+                { label: '浅灰', value: '#f3f4f6' },
+                { label: '暖白', value: '#fdf6e3' },
+            ];
+
+            const MODE_DEFAULTS = {
+                light: { bg: '#ffffff', color: '#1f2937', link: '#2563eb' },
+                dark: { bg: '#111827', color: '#d1d5db', link: '#93c5fd' },
+            };
+
+            const store = {
+                get: (k, def) => localStorage.getItem(STORAGE_PREFIX + k) ?? def,
+                set: (k, v) => localStorage.setItem(STORAGE_PREFIX + k, v),
+                remove: (k) => localStorage.removeItem(STORAGE_PREFIX + k),
+            };
+
+            return {
+                darkMode: store.get('darkMode', 'false') === 'true',
+                tocOpen: false,
+                settingsOpen: false,
+                uiVisible: true,
+                isFullscreen: false,
+                bookTitle: '',
+
+                toc: [],
+                progress: 0,
+                currentChapter: '',
+                seekHover: false,
+                seekDragging: false,
+                seekDisplayPct: 0,
+                hoverProgress: 0,
+
+                book: null,
+                rendition: null,
+                locationsReady: false,
+
+                isMobile: window.matchMedia('(max-width: 640px)').matches,
+
+                readMode: store.get('readMode', 'paginated'),
+                fontSize: parseInt(store.get('fontSize', '18')),
+                lineHeight: parseFloat(store.get('lineHeight', '1.8')),
+                sidePadding: parseInt(store.get('sidePadding', '24')),
+                customFontColor: store.get('fontColor', ''),
+                customBgColor: store.get('bgColor', ''),
+
+                fontColorPresets: FONT_COLOR_PRESETS,
+                bgColorPresets: BG_COLOR_PRESETS,
+
+                _navCooldown: false,
+                _settingTimer: null,
+                _styleTagId: 'epub-override-style',
+                _dragState: { active: false, startY: 0, startTop: 0 },
+
+                init() {
+                    this._persistSettings();
+                    this._bindGlobalEvents();
+                    this.$nextTick(() => this.loadBook());
+                },
+
+                _persistSettings() {
+                    this.$watch('darkMode', v => store.set('darkMode', v));
+                    this.$watch('fontSize', v => store.set('fontSize', v));
+                    this.$watch('lineHeight', v => store.set('lineHeight', v));
+                    this.$watch('sidePadding', v => store.set('sidePadding', v));
+                    this.$watch('readMode', v => store.set('readMode', v));
+                    this.$watch('customFontColor', v =>
+                        v ? store.set('fontColor', v) : store.remove('fontColor'));
+                    this.$watch('customBgColor', v =>
+                        v ? store.set('bgColor', v) : store.remove('bgColor'));
+                },
+
+                _bindGlobalEvents() {
+                    let resizeTimer;
+                    window.addEventListener('resize', () => {
+                        clearTimeout(resizeTimer);
+                        resizeTimer = setTimeout(() => this._onWindowResize(), 160);
+                    });
+
+                    document.addEventListener('keyup', e => this._handleKey(e));
+
+                    // 全屏状态同步
+                    const onFsChange = () => {
+                        this.isFullscreen =
+                            !!(document.fullscreenElement || document.webkitFullscreenElement);
+                        setTimeout(() => this._safeResize(), 100);
+                    };
+                    document.addEventListener('fullscreenchange', onFsChange);
+                    document.addEventListener('webkitfullscreenchange', onFsChange);
+                },
+
+                async loadBook(restoreCfi = null) {
+                    const epubUrl = "{{ epub_url }}";
+                    const viewer = document.getElementById('viewer');
+                    if (viewer) viewer.innerHTML = '';
+
+                    try {
+                        this.book = ePub();
+                        this.rendition = this.book.renderTo('viewer', this._getRenderOptions());
+
+                        this._bindRenditionEvents();
+
+                        // 通过 URL 获取 EPUB 数据
+                        const response = await fetch(epubUrl);
+                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                        const arrayBuffer = await response.arrayBuffer();
+                        await this.book.open(arrayBuffer);
+
+                        try {
+                            const meta = await this.book.loaded.metadata;
+                            this.bookTitle = meta.title || '{{ file_name }}';
+                        } catch (_) {
+                            this.bookTitle = '{{ file_name }}';
+                        }
+
+                        try {
+                            const nav = await this.book.loaded.navigation;
+                            this.toc = this._flattenToc(nav.toc || []);
+                        } catch (err) {
+                            console.warn('TOC load failed:', err);
+                        }
+
+                        try {
+                            await this.book.ready;
+                            await this.book.locations.generate(1200);
+                            this.locationsReady = true;
+                        } catch (err) {
+                            console.warn('Locations generate failed:', err);
+                        }
+
+                        const cfi = restoreCfi || localStorage.getItem(this._cfiKey());
+                        if (cfi) {
+                            await this.rendition.display(cfi);
+                        } else {
+                            const spineItems = this.book.spine?.spineItems || [];
+                            const firstContent = spineItems.find(item => item.href && !item.href.includes('nav'));
+                            await this.rendition.display(firstContent?.href || undefined);
+                        }
+
+                        this.injectStyles();
+                        this._setupInteraction();
+
+                    } catch (err) {
+                        console.error('EPUB load error:', err);
+                        this.currentChapter = '加载失败：' + err.message;
+                    }
+                },
+
+                _flattenToc(items, depth = 0) {
+                    const result = [];
+                    for (const item of items) {
+                        result.push({
+                            label: ('　'.repeat(depth)) + (item.label || '').trim(),
+                            href: item.href,
+                        });
+                        if (item.subitems?.length) {
+                            result.push(...this._flattenToc(item.subitems, depth + 1));
+                        }
+                    }
+                    return result;
+                },
+
+                _getRenderOptions() {
+                    const scrolled = this.readMode === 'scrolled';
+                    return {
+                        width: '100%',
+                        height: '100%',
+                        spread: 'none',
+                        flow: scrolled ? 'scrolled-doc' : 'paginated',
+                        manager: scrolled ? 'continuous' : 'default',
+                        snap: false,
+                        allowScriptedContent: true,
+                        ignoreClass: 'annotator-hl',
+                    };
+                },
+
+                injectStyles() {
+                    if (!this.rendition) return;
+
+                    const colors = this._resolveColors();
+                    const sidePad = this._effectiveSidePad();
+                    const topPad = this._effectiveTopPad();
+                    const botPad = this._effectiveBotPad();
+
+                    const css = `
+        html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: ${colors.bg} !important;
+            color: ${colors.color} !important;
+            font-size: ${this.fontSize}px !important;
+            line-height: ${this.lineHeight} !important;
+            -webkit-text-size-adjust: 100% !important;
+            word-break: break-word !important;
+            overflow-wrap: break-word !important;
+        }
+
+        body {
+            padding-top: ${topPad}px !important;
+            padding-bottom: ${botPad}px !important;
+            padding-left: ${sidePad}px !important;
+            padding-right: ${sidePad}px !important;
+            box-sizing: border-box !important;
+            ${this.readMode === 'scrolled'
+                            ? `
+                    overflow-y: auto !important;
+                    cursor: ${this.isMobile ? 'auto' : 'grab'} !important;
+                    -webkit-overflow-scrolling: touch !important;
+                  `
+                            : `
+                    overflow: hidden !important;
+                    cursor: default !important;
+                  `
+                        }
+        }
+
+        body, body * {
+            color: ${colors.color} !important;
+        }
+
+        a, a:visited {
+            color: ${colors.link} !important;
+        }
+
+        img, svg, video, canvas, figure {
+            max-width: 100% !important;
+            height: auto !important;
+        }
+
+        pre, code {
+            white-space: pre-wrap !important;
+            word-break: break-word !important;
+        }
+
+        p {
+            margin-bottom: 0.85em !important;
+        }
+    `;
+
+                    const viewer = document.getElementById('viewer');
+                    if (viewer) viewer.style.background = colors.bg;
+
+                    try {
+                        const contents = this.rendition.getContents();
+                        contents.forEach(c => {
+                            const doc = c.document;
+                            if (!doc) return;
+
+                            let styleEl = doc.getElementById(this._styleTagId);
+                            if (!styleEl) {
+                                styleEl = doc.createElement('style');
+                                styleEl.id = this._styleTagId;
+                                doc.head.appendChild(styleEl);
+                            }
+                            styleEl.textContent = css;
+                        });
+                    } catch (e) {
+                        console.warn('injectStyles error:', e);
+                    }
+                },
+
+                _bindRenditionEvents() {
+                    this.rendition.on('relocated', location => {
+                        try {
+                            const cfi = location?.start?.cfi;
+                            if (cfi) localStorage.setItem(this._cfiKey(), cfi);
+
+                            // 进度
+                            if (this.locationsReady && cfi) {
+                                const pct = this.book.locations.percentageFromCfi(cfi) || 0;
+                                this.progress = Math.round(pct * 100);
+                            } else {
+                                this.progress = Math.round((location?.start?.percentage || 0) * 100);
+                            }
+
+                            this._updateChapter(location);
+                        } catch (e) {
+                            console.warn('relocated handler error:', e);
+                        }
+                    });
+
+                    this.rendition.on('rendered', (section, view) => {
+                        if (view && view.contents) {
+                            this.injectStyles();
+                            this._setupSingleViewInteraction(view.contents);
+                        }
+                    });
+
+                },
+                _updateChapter(location) {
+                    const href = location?.start?.href || '';
+                    if (!href) return;
+                    const base = href.split('#')[0];
+                    const matched = this.toc.find(item => {
+                        const h = (item.href || '').split('#')[0];
+                        return h === base || base.endsWith(h) || h.endsWith(base);
+                    });
+                    this.currentChapter = matched
+                        ? matched.label.trimStart()   // 去掉缩进前缀用于显示
+                        : (this.toc[0]?.label?.trimStart() || '');
+                },
+
+                _resolveColors() {
+                    const def = MODE_DEFAULTS[this.darkMode ? 'dark' : 'light'];
+                    return {
+                        bg: this.customBgColor || def.bg,
+                        color: this.customFontColor || def.color,
+                        link: def.link,
+                    };
+                },
+
+                _effectiveSidePad() {
+                    const vw = window.innerWidth || 375;
+                    let pad = this.sidePadding;
+                    if (this.isMobile) {
+                        // 移动端：最多占视口宽度的 10%，且不低于 12px
+                        pad = Math.max(12, Math.min(pad, Math.floor(vw * 0.10)));
+                    } else {
+                        // 桌面端：分页模式给更宽留白，滚动模式稍窄
+                        const max = this.readMode === 'paginated' ? 80 : 56;
+                        pad = Math.max(16, Math.min(pad, max));
+                    }
+                    return pad;
+                },
+
+                _effectiveTopPad() {
+                    return this.isMobile
+                        ? (this.readMode === 'paginated' ? 16 : 12)
+                        : (this.readMode === 'paginated' ? 24 : 16);
+                },
+
+                _effectiveBotPad() {
+                    return this.isMobile
+                        ? (this.readMode === 'paginated' ? 20 : 16)
+                        : (this.readMode === 'paginated' ? 28 : 20);
+                },
+
+                _cfiKey() {
+                    // 用文件名作为 key，隔离不同书籍的阅读进度
+                    return STORAGE_PREFIX + 'cfi:{{ file_name }}';
+                },
+
+                onSettingChange() {
+                    clearTimeout(this._settingTimer);
+                    this._settingTimer = setTimeout(() => {
+                        this.injectStyles();
+                        // 分页模式下字号/边距变化后需要重算分页
+                        if (this.readMode === 'paginated') {
+                            this._safeResize();
+                        }
+                    }, 60);
+                },
+
+                async switchReadMode(mode) {
+                    if (this.readMode === mode) return;
+                    this.readMode = mode;
+                    await this._rebuildRendition();
+                },
+
+                async _rebuildRendition() {
+                    const cfi = localStorage.getItem(this._cfiKey());
+
+                    // 销毁旧 rendition
+                    try { this.rendition?.destroy(); } catch (_) { }
+                    const viewer = document.getElementById('viewer');
+                    if (viewer) viewer.innerHTML = '';
+                    this.rendition = null;
+
+                    if (!this.book) {
+                        // book 也丢了，全量重载
+                        await this.loadBook(cfi);
+                        return;
+                    }
+
+                    try {
+                        this.rendition = this.book.renderTo('viewer', this._getRenderOptions());
+                        this._bindRenditionEvents();
+                        await this.rendition.display(cfi || undefined);
+                        this.injectStyles();
+                        this._setupInteraction();
+                    } catch (err) {
+                        console.warn('Rebuild rendition failed, fallback full reload:', err);
+                        this.book = null;
+                        await this.loadBook(cfi);
+                    }
+                },
+
+                toggleDarkMode() {
+                    this.darkMode = !this.darkMode;
+                    // 更新 viewer 容器背景（防止 iframe 外露白边）
+                    const colors = this._resolveColors();
+                    const viewer = document.getElementById('viewer');
+                    if (viewer) viewer.style.background = colors.bg;
+                    // 直接重新注入 CSS，所有 iframe 立即更新
+                    this.injectStyles();
+                },
+
+                setFontColor(color) {
+                    this.customFontColor = color;
+                    this.injectStyles();
+                },
+
+                resetFontColor() {
+                    this.customFontColor = '';
+                    this.injectStyles();
+                },
+
+                setBgColor(color) {
+                    this.customBgColor = color;
+                    this.injectStyles();
+                    if (this.readMode === 'paginated') this._safeResize();
+                },
+
+                resetBgColor() {
+                    this.customBgColor = '';
+                    this.injectStyles();
+                    if (this.readMode === 'paginated') this._safeResize();
+                },
+
+                resetSettings() {
+                    this.fontSize = 18;
+                    this.lineHeight = 1.8;
+                    this.sidePadding = 24;
+                    this.customFontColor = '';
+                    this.customBgColor = '';
+                    this.injectStyles();
+                    if (this.readMode === 'paginated') this._safeResize();
+                },
+
+                prev() {
+                    if (!this.rendition || this._navCooldown) return;
+                    this._setCooldown();
+                    if (this.readMode === 'paginated') {
+                        this.rendition.prev();
+                    } else {
+                        this._scrollBy(-0.82);
+                    }
+                },
+
+                next() {
+                    if (!this.rendition || this._navCooldown) return;
+                    this._setCooldown();
+                    if (this.readMode === 'paginated') {
+                        this.rendition.next();
+                    } else {
+                        this._scrollBy(0.82);
+                    }
+                },
+
+                _setCooldown() {
+                    this._navCooldown = true;
+                    setTimeout(() => this._navCooldown = false, 200);
+                },
+
+                _scrollBy(ratio) {
+                    try {
+                        const contents = this.rendition.getContents();
+                        if (!contents?.length) return;
+                        contents.forEach(c => {
+                            const doc = c.document;
+                            const scroller = doc.scrollingElement || doc.documentElement;
+                            const step = Math.max(c.window.innerHeight * ratio, 160);
+                            scroller.scrollBy({ top: step, behavior: 'smooth' });
+                        });
+                    } catch (e) {
+                        console.warn('_scrollBy error:', e);
+                    }
+                },
+
+                goToChapter(href) {
+                    if (!this.rendition || !href) return;
+                    this.rendition.display(href).catch(e => console.warn('display error:', e));
+                    this.tocOpen = false;
+                    this.settingsOpen = false;
+                },
+
+                /* ── 进度条拖拽 ── */
+
+                _getBarRect(el) {
+                    // 向上找到进度条容器
+                    const bar = el.closest('[class*="py-2"]') || el;
+                    return bar.getBoundingClientRect();
+                },
+
+                _clientX(e) {
+                    return e.touches ? e.touches[0].clientX : e.clientX;
+                },
+
+                _pctFromEvent(e, rect) {
+                    const x = this._clientX(e) - rect.left;
+                    return Math.round(Math.max(0, Math.min(100, (x / rect.width) * 100)));
+                },
+
+                startSeekDrag(event) {
+                    if (!this.book || !this.locationsReady) return;
+
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    this.seekDragging = true;
+                    this.seekDisplayPct = this._pctFromEvent(event, rect);
+                    this._seekBarRect = rect;
+
+                    const onMove = (e) => {
+                        if (!this.seekDragging) return;
+                        e.preventDefault();
+                        this.seekDisplayPct = this._pctFromEvent(e, this._seekBarRect);
+                    };
+
+                    const onEnd = (e) => {
+                        if (!this.seekDragging) return;
+                        // 先锁定进度到拖拽位置，防止松手后回跳
+                        const displayPct = Math.round(this.seekDisplayPct);
+                        this.progress = displayPct;
+                        this.seekDragging = false;
+                        this._commitSeek(displayPct / 100);
+
+                        document.removeEventListener('mousemove', onMove);
+                        document.removeEventListener('mouseup', onEnd);
+                        document.removeEventListener('touchmove', onMove);
+                        document.removeEventListener('touchend', onEnd);
+                        document.removeEventListener('touchcancel', onEnd);
+                    };
+
+                    document.addEventListener('mousemove', onMove, { passive: false });
+                    document.addEventListener('mouseup', onEnd);
+                    document.addEventListener('touchmove', onMove, { passive: false });
+                    document.addEventListener('touchend', onEnd);
+                    document.addEventListener('touchcancel', onEnd);
+                },
+
+                _commitSeek(percentage) {
+                    try {
+                        const cfi = this.book.locations.cfiFromPercentage(percentage);
+                        if (cfi) this.rendition.display(cfi);
+                    } catch (e) {
+                        console.warn('Seek failed:', e);
+                    }
+                },
+
+                trackHover(event) {
+                    if (this.seekDragging) return;
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    this.hoverProgress = this._pctFromEvent(event, rect);
+                },
+
+                toggleUI() {
+                    this.uiVisible = !this.uiVisible;
+                    // 等待 transition 结束后 resize，避免尺寸跳变
+                    setTimeout(() => this._safeResize(), 220);
+                },
+
+                async toggleFullscreen() {
+                    if (this.isFullscreen) {
+                        await this._exitFullscreen();
+                    } else {
+                        await this._enterFullscreen();
+                    }
+                },
+
+                async _enterFullscreen() {
+                    const el = document.getElementById('app');
+                    try {
+                        if (el.requestFullscreen) {
+                            await el.requestFullscreen({ navigationUI: 'hide' });
+                        } else if (el.webkitRequestFullscreen) {
+                            el.webkitRequestFullscreen();
+                        }
+                    } catch (e) {
+                        console.warn('Fullscreen enter failed:', e);
+                    }
+                },
+
+                async _exitFullscreen() {
+                    try {
+                        if (document.fullscreenElement && document.exitFullscreen) {
+                            await document.exitFullscreen();
+                        } else if (document.webkitFullscreenElement && document.webkitExitFullscreen) {
+                            document.webkitExitFullscreen();
+                        }
+                    } catch (e) {
+                        console.warn('Fullscreen exit failed:', e);
+                    }
+                },
+
+                _onWindowResize() {
+                    const wasMobile = this.isMobile;
+                    this.isMobile = window.matchMedia('(max-width: 640px)').matches;
+                    this._safeResize();
+                    this.injectStyles(); // 边距可能因设备类型变化而变化
+                    if (wasMobile !== this.isMobile) {
+                        this._rebuildRendition();
+                    }
+                },
+
+                _safeResize() {
+                    if (!this.rendition) return;
+                    try { this.rendition.resize(); } catch (e) { }
+                },
+
+                _handleKey(e) {
+                    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+
+                    switch (e.key) {
+                        case 'ArrowLeft':
+                            if (this.readMode === 'paginated') this.prev();
+                            break;
+                        case 'ArrowRight':
+                            if (this.readMode === 'paginated') this.next();
+                            break;
+                        case 'ArrowUp':
+                            if (this.readMode === 'scrolled') this.prev();
+                            break;
+                        case 'ArrowDown':
+                            if (this.readMode === 'scrolled') this.next();
+                            break;
+                        case 'PageUp':
+                            this.readMode === 'scrolled' ? this._scrollBy(-0.95) : this.prev();
+                            break;
+                        case 'PageDown':
+                            this.readMode === 'scrolled' ? this._scrollBy(0.95) : this.next();
+                            break;
+                        case 'Escape':
+                            this.tocOpen = false;
+                            this.settingsOpen = false;
+                            if (this.isFullscreen) this._exitFullscreen();
+                            break;
+                        case 'f':
+                        case 'F':
+                            this.toggleFullscreen();
+                            break;
+                    }
+                },
+
+                _setupInteraction() {
+                    if (!this.rendition) return;
+                    try {
+                        const contents = this.rendition.getContents();
+                        if (contents?.length) {
+                            contents.forEach(c => this._setupSingleViewInteraction(c));
+                        }
+                    } catch (e) {
+                        console.warn('_setupInteraction error:', e);
+                    }
+                },
+
+                _setupSingleViewInteraction(contents) {
+                    if (!contents?.document || !contents?.window) return;
+
+                    if (this.readMode === 'scrolled') {
+                        this._bindScrolledTapToggle(contents);
+                        if (!this.isMobile) this._bindDragScroll(contents);
+                    } else {
+                        this._unbindScrolledTapToggle(contents);
+                        this._unbindDragScroll(contents);
+                    }
+                },
+
+                _bindScrolledTapToggle(contents) {
+                    if (!contents?.document || contents._tapToggleBound) return;
+                    const self = this;
+                    let startX = 0, startY = 0;
+
+                    const onTouchStart = e => {
+                        const t = e.touches[0];
+                        startX = t.clientX; startY = t.clientY;
+                    };
+                    const onTouchEnd = e => {
+                        const t = e.changedTouches[0];
+                        if (Math.abs(t.clientX - startX) > 10 || Math.abs(t.clientY - startY) > 10) return;
+                        const vw = contents.window.innerWidth;
+                        if (t.clientX > vw * 0.25 && t.clientX < vw * 0.75) self.toggleUI();
+                    };
+                    const onClick = e => {
+                        const vw = contents.window.innerWidth;
+                        if (e.clientX > vw * 0.25 && e.clientX < vw * 0.75) self.toggleUI();
+                    };
+
+                    const doc = contents.document;
+                    if (this.isMobile) {
+                        doc.addEventListener('touchstart', onTouchStart, { passive: true });
+                        doc.addEventListener('touchend', onTouchEnd);
+                    } else {
+                        doc.addEventListener('click', onClick);
+                    }
+                    contents._tapToggleBound = true;
+                    contents._tapToggleHandlers = { onTouchStart, onTouchEnd, onClick, doc };
+                },
+
+                _unbindScrolledTapToggle(contents) {
+                    if (!contents?._tapToggleBound || !contents._tapToggleHandlers) return;
+                    const { onTouchStart, onTouchEnd, onClick, doc } = contents._tapToggleHandlers;
+                    doc?.removeEventListener('touchstart', onTouchStart);
+                    doc?.removeEventListener('touchend', onTouchEnd);
+                    doc?.removeEventListener('click', onClick);
+                    contents._tapToggleBound = false;
+                    contents._tapToggleHandlers = null;
+                },
+
+                _bindDragScroll(contents) {
+                    if (!contents?.document || contents._dragBound) return;
+
+                    const win = contents.window;
+                    const doc = contents.document;
+                    const body = doc.body;
+                    if (!body) return;
+
+                    const scroller = () =>
+                        doc.scrollingElement || doc.documentElement || body;
+
+                    const onDown = e => {
+                        if (e.button !== 0) return;
+                        this._dragState = {
+                            active: true,
+                            startY: e.clientY,
+                            startTop: scroller().scrollTop,
+                        };
+                        body.style.cursor = 'grabbing';
+                        body.style.userSelect = 'none';
+                    };
+
+                    const onMove = e => {
+                        if (!this._dragState.active) return;
+                        const delta = e.clientY - this._dragState.startY;
+                        scroller().scrollTop = this._dragState.startTop - delta;
+                        e.preventDefault();
+                    };
+
+                    const onUp = () => {
+                        if (!this._dragState.active) return;
+                        this._dragState.active = false;
+                        body.style.cursor = 'grab';
+                        body.style.userSelect = '';
+                    };
+
+                    body.addEventListener('mousedown', onDown);
+                    win.addEventListener('mousemove', onMove, { passive: false });
+                    win.addEventListener('mouseup', onUp);
+                    win.addEventListener('mouseleave', onUp);
+
+                    contents._dragBound = true;
+                    contents._dragHandlers = { onDown, onMove, onUp, win, body };
+                },
+
+                _unbindDragScroll(contents) {
+                    if (!contents?._dragBound || !contents._dragHandlers) return;
+                    const { onDown, onMove, onUp, win, body } = contents._dragHandlers;
+                    body?.removeEventListener('mousedown', onDown);
+                    win?.removeEventListener('mousemove', onMove);
+                    win?.removeEventListener('mouseup', onUp);
+                    win?.removeEventListener('mouseleave', onUp);
+                    if (body) {
+                        body.style.cursor = 'auto';
+                        body.style.userSelect = '';
+                    }
+                    contents._dragBound = false;
+                    contents._dragHandlers = null;
+                },
+
+            }; // end return
+        } // end epubReader
+    </script>
+</body>
+
+</html>

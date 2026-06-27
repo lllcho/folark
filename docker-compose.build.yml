@@ -1,0 +1,19 @@
+# ── 生产部署版 ──────────────────────────────────────────
+# 使用预构建镜像（需先发布镜像到容器仓库）
+# 使用方式：
+#   docker compose -f docker-compose.build.yml up -d
+#
+# 你也可以指定自己 fork 的镜像源：
+#   GITHUB_OWNER=your_name docker compose -f docker-compose.build.yml up -d
+
+services:
+  folark:
+    image: ghcr.io/${GITHUB_OWNER:-owner}/folark:latest
+    container_name: folark
+    ports:
+      - "8890:8890"
+    volumes:
+      - ./data:/app/data
+    env_file:
+      - .env
+    restart: unless-stopped

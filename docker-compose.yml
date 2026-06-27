@@ -1,0 +1,13 @@
+services:
+  folark:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: folark
+    ports:
+      - "8890:8890"
+    volumes:
+      - ./data:/app/data
+    env_file:
+      - .env
+    restart: unless-stopped

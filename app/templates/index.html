@@ -1,0 +1,1041 @@
+{% extends "base.html" %}
+
+{% block title %}folark - 文档管理{% endblock %}
+
+{% block content %}
+<script>window.__extensionMap = {{ extension_map | tojson }};</script>
+<div x-data="documentApp" @refresh-list.window="refreshList()">
+
+    <!-- 搜索栏 -->
+    <div class="mb-3 sm:mb-6">
+        <form @submit.prevent="search()" class="relative">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+            </div>
+            <input type="search"
+                   x-model="$store.docs.searchQuery"
+                   @search="if(!$event.target.value) clearSearch()"
+                   placeholder="搜索文档内容..."
+                   class="block w-full pl-10 pr-8 py-2.5 sm:py-3 border border-gray-300 dark:border-gray-600 rounded-lg
+                          bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100
+                          placeholder-gray-500 dark:placeholder-gray-400
+                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                          transition-colors">
+            <div class="absolute inset-y-0 right-0 pr-3 flex items-center gap-2">
+                <span x-show="$store.docs.loading" x-transition.opacity class="spinner text-blue-600"></span>
+            </div>
+        </form>
+    </div>
+
+
+
+    <!-- 工具栏 -->
+    <div class="mb-3 sm:mb-5">
+        <!-- 第一行：过滤图标（左） + 操作按钮（右） -->
+        <div class="flex items-center justify-between">
+            <!-- 左侧：移动端漏斗 + PC端分类标签 -->
+            <div class="flex items-center gap-2 min-w-0">
+                <!-- 过滤按钮（仅移动端） -->
+                <button @click="showFilters = !showFilters"
+                        :class="(activeFilter !== 'all' || activeTagUuid)
+                            ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                            : showFilters
+                                ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
+                                : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'"
+                        class="sm:hidden p-2 rounded-full transition-all duration-200 relative" title="筛选">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                    </svg>
+                    <!-- 激活指示点 -->
+                    <span x-show="activeFilter !== 'all' || activeTagUuid"
+                          class="absolute -top-0.5 -right-0.5 w-2 h-2 bg-blue-500 rounded-full"></span>
+                </button>
+
+                <!-- PC端分类标签（始终显示） -->
+                <div class="hidden sm:flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                    <template x-for="filterItem in [
+                        {key: 'all', label: '全部'},
+                        {key: 'document', label: '文档'},
+                        {key: 'ebook', label: '电子书'},
+                        {key: 'text', label: '纯文本'},
+                        {key: 'image', label: '图片'},
+                        {key: 'audio', label: '音频'},
+                        {key: 'video', label: '视频'},
+                        {key: 'archive', label: '压缩包'}
+                    ]" :key="filterItem.key">
+                        <button @click="filterByType(filterItem.key === 'all' ? '' : filterItem.key)"
+                                :class="activeFilter === filterItem.key
+                                    ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
+                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800'"
+                                class="px-3 py-1.5 rounded-full text-sm font-medium transition-colors duration-200 whitespace-nowrap shrink-0"
+                                x-text="filterItem.label">
+                        </button>
+                    </template>
+                </div>
+            </div>
+
+            <!-- 操作按钮组 -->
+            <div class="flex items-center gap-1.5">
+                <button @click="toggleSelectMode()"
+                        :class="selectMode
+                            ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
+                            : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'"
+                        class="p-2 rounded-full transition-all duration-200" title="批量选择">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                    </svg>
+                </button>
+                <!-- 排序下拉菜单 -->
+                <div class="relative" x-data="{ sortOpen: false }" @click.outside="sortOpen = false">
+                    <button @click="sortOpen = !sortOpen"
+                            :class="$store.docs.sortBy !== 'default'
+                                ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
+                                : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'"
+                            class="p-2 rounded-full transition-all duration-200" title="排序">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"/>
+                        </svg>
+                    </button>
+                    <div x-show="sortOpen" x-transition:enter="transition ease-out duration-100"
+                         x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+                         x-transition:leave="transition ease-in duration-75"
+                         x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+                         class="absolute right-0 mt-1 w-20 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
+                        <template x-for="opt in sortOptions" :key="opt.key">
+                            <button @click="changeSort(opt.key); sortOpen = false"
+                                    :class="$store.docs.sortBy === opt.key
+                                        ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100'
+                                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'"
+                                    class="block w-full text-left px-2.5 py-1.5 text-xs font-medium transition-colors"
+                                    x-text="opt.label">
+                            </button>
+                        </template>
+                    </div>
+                </div>
+                <button @click="viewMode = viewMode === 'grid' ? 'list' : 'grid'"
+                        class="p-2 rounded-full text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200"
+                        :title="viewMode === 'grid' ? '切换列表视图' : '切换网格视图'">
+                    <svg x-show="viewMode === 'grid'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                    </svg>
+                    <svg x-show="viewMode === 'list'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- 筛选面板（移动端可折叠 / PC端始终显示） -->
+        <div :class="showFilters ? 'block' : 'hidden sm:block'"
+             class="mt-2 space-y-2">
+            <!-- 分类标签（仅移动端） -->
+            <div class="sm:hidden flex items-center gap-1 overflow-x-auto no-scrollbar">
+                <template x-for="filterItem in [
+                    {key: 'all', label: '全部'},
+                    {key: 'document', label: '文档'},
+                    {key: 'ebook', label: '电子书'},
+                    {key: 'text', label: '纯文本'},
+                    {key: 'image', label: '图片'},
+                    {key: 'audio', label: '音频'},
+                    {key: 'video', label: '视频'},
+                    {key: 'archive', label: '压缩包'}
+                ]" :key="filterItem.key">
+                    <button @click="filterByType(filterItem.key === 'all' ? '' : filterItem.key)"
+                            :class="activeFilter === filterItem.key
+                                ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
+                                : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800'"
+                            class="px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-200 whitespace-nowrap shrink-0"
+                            x-text="filterItem.label">
+                    </button>
+                </template>
+            </div>
+            <!-- 二级扩展名筛选 -->
+            <div x-show="activeFilter !== 'all' && currentExtensions.length > 0"
+                 x-transition:enter="transition-all ease-out duration-200 overflow-hidden"
+                 x-transition:enter-start="opacity-0 max-h-0"
+                 x-transition:enter-end="opacity-100 max-h-40"
+                 x-transition:leave="transition-all ease-in duration-150 overflow-hidden"
+                 x-transition:leave-start="opacity-100 max-h-40"
+                 x-transition:leave-end="opacity-0 max-h-0"
+                 class="flex flex-wrap items-center gap-1 pl-0.5">
+                <span class="text-xs text-gray-300 dark:text-gray-600 mr-0.5 select-none">格式</span>
+                <button @click="filterByExtension('')"
+                        :class="activeExtension === '' ? 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200' : 'text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'"
+                        class="px-2 py-0.5 rounded-full text-xs font-medium transition-all duration-200">全部</button>
+                <template x-for="ext in currentExtensions" :key="ext">
+                    <button @click="filterByExtension(ext)"
+                            :class="activeExtension === ext ? 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200' : 'text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'"
+                            class="px-2 py-0.5 rounded-full text-xs font-medium transition-all duration-200 uppercase"
+                            x-text="ext"></button>
+                </template>
+            </div>
+            <!-- 标签筛选 -->
+            <div x-show="availableTags.length > 0" class="flex flex-wrap items-center gap-1 pl-0.5">
+                <span class="text-xs text-gray-300 dark:text-gray-600 mr-0.5 select-none">标签</span>
+                <button @click="filterByTag('')"
+                        :class="activeTagUuid === '' ? 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200' : 'text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'"
+                        class="px-2 py-0.5 rounded-full text-xs font-medium transition-all duration-200">全部</button>
+                <template x-for="tag in availableTags" :key="tag.uuid">
+                    <button @click="filterByTag(tag.uuid)"
+                            :class="activeTagUuid === tag.uuid ? 'ring-1.5 ring-current ring-offset-1' : 'hover:opacity-80'"
+                            :style="`color: ${tag.color}`"
+                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-all duration-200">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/>
+                        </svg>
+                        <span x-text="tag.name"></span>
+                    </button>
+                </template>
+            </div>
+        </div>
+
+        <!-- 批量操作栏 -->
+        <div x-show="selectMode" x-transition
+             class="flex flex-wrap items-center gap-2 sm:gap-3 mt-2.5 px-3 sm:px-4 py-2 bg-gray-50 dark:bg-gray-800/80 rounded-xl sm:rounded-full">
+            <label class="flex items-center gap-1.5 cursor-pointer select-none">
+                <input type="checkbox" :checked="isAllSelected" @change="isAllSelected ? deselectAll() : selectAll()"
+                       class="w-3.5 h-3.5 rounded border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-gray-500">
+                <span class="text-xs font-medium text-gray-600 dark:text-gray-300">全选</span>
+            </label>
+            <span class="text-xs text-gray-400 dark:text-gray-500">
+                已选 <span x-text="selectedUuids.length" class="font-semibold text-gray-900 dark:text-gray-100"></span> 项
+            </span>
+            <div class="ml-auto flex items-center gap-1.5">
+                <!-- 添加标签 -->
+                <div class="relative">
+                    <button @click="showBatchTagInput = !showBatchTagInput"
+                            :disabled="selectedUuids.length === 0"
+                            :class="selectedUuids.length === 0
+                                ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                                : showBatchTagInput
+                                    ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                                    : 'text-blue-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20'"
+                            class="px-2.5 py-1 text-xs font-medium rounded-full transition-all duration-200 flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/>
+                        </svg>
+                        标签
+                    </button>
+                    <!-- 标签输入下拉 -->
+                    <div x-show="showBatchTagInput" x-transition
+                         @click.outside="showBatchTagInput = false"
+                         class="absolute right-0 mt-1 w-52 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-2 z-50">
+                        <form @submit.prevent="batchAddTag()" class="flex gap-1.5">
+                            <input type="text" x-model="batchTagName" x-ref="batchTagInput"
+                                   placeholder="输入标签名称"
+                                   class="flex-1 min-w-0 px-2.5 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-md
+                                          bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100
+                                          placeholder-gray-400 dark:placeholder-gray-500
+                                          focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                   @keydown.escape="showBatchTagInput = false">
+                            <button type="submit"
+                                    :disabled="!batchTagName.trim()"
+                                    :class="!batchTagName.trim()
+                                        ? 'bg-gray-200 dark:bg-gray-600 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                                        : 'bg-blue-500 hover:bg-blue-600 text-white'"
+                                    class="px-2.5 py-1.5 text-xs font-medium rounded-md transition-colors shrink-0">
+                                添加
+                            </button>
+                        </form>
+                        <!-- 已有标签快捷选择 -->
+                        <div x-show="availableTags.length > 0" class="mt-1.5 pt-1.5 border-t border-gray-100 dark:border-gray-700">
+                            <div class="flex flex-wrap gap-1">
+                                <template x-for="tag in availableTags" :key="tag.uuid">
+                                    <button type="button" @click="batchTagName = tag.name; $nextTick(() => batchAddTag())"
+                                            :style="`color: ${tag.color}`"
+                                            class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-medium
+                                                   hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                        <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                  d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/>
+                                        </svg>
+                                        <span x-text="tag.name"></span>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- 执行任务 -->
+                <button @click="openBatchExecuteModal()"
+                        :disabled="selectedUuids.length === 0"
+                        :class="selectedUuids.length === 0
+                            ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                            : 'text-purple-500 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20'"
+                        class="px-2.5 py-1 text-xs font-medium rounded-full transition-all duration-200 flex items-center gap-1">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    任务
+                </button>
+                <!-- 删除 -->
+                <button @click="batchDelete()"
+                        :disabled="selectedUuids.length === 0"
+                        :class="selectedUuids.length === 0
+                            ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                            : 'text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20'"
+                        class="px-2.5 py-1 text-xs font-medium rounded-full transition-all duration-200 flex items-center gap-1">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                    删除
+                </button>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- 文档列表 -->
+    <div x-show="!$store.docs.loading"
+         :class="viewMode === 'grid' ? 'view-grid' : 'view-list'">
+        <div class="document-grid">
+            <template x-for="doc in $store.docs.items" :key="doc.uuid">
+                <!-- Document Card -->
+                <div class="doc-card group flex bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700
+                            hover:shadow-md hover:border-blue-300 dark:hover:border-blue-600
+                            transition-all duration-200 overflow-hidden cursor-pointer"
+                     :class="selectMode && isSelected(doc.uuid) ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-600' : ''"
+                     @click="selectMode ? toggleSelect(doc.uuid) : openDetail(doc.uuid)">
+
+                    <!-- Select checkbox (inline) -->
+                    <div x-show="selectMode" class="card-select-check flex items-center justify-center shrink-0" @click.stop>
+                        <input type="checkbox" :checked="isSelected(doc.uuid)" @change="toggleSelect(doc.uuid)"
+                               class="w-4.5 h-4.5 rounded border-gray-300 dark:border-gray-500 text-blue-600 focus:ring-blue-500
+                                      cursor-pointer">
+                    </div>
+
+                    <!-- Thumbnail / Icon Area -->
+                    <div class="card-thumbnail relative bg-gray-100 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
+                        <!-- 缩略图或文件类型图标 -->
+                        <img :src="doc.thumbnail_path ? getThumbnailUrl(doc.uuid) : getFileIconUrl(doc.file_type)"
+                             :alt="doc.title || doc.file_name"
+                             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                             loading="lazy"
+                             @error="if(doc.thumbnail_path) { $el.src = getFileIconUrl(doc.file_type); $el.onerror=null; }">
+
+                        <!-- File Type Badge (grid only) -->
+                        <span class="card-type-badge absolute top-2 right-2 px-2 py-1 text-xs font-medium uppercase
+                                     bg-black/50 text-white rounded"
+                              x-text="doc.file_type">
+                        </span>
+                    </div>
+
+                    <!-- Document Info -->
+                    <div class="card-body min-w-0">
+                        <!-- Title -->
+                        <h3 class="font-medium text-gray-900 dark:text-gray-100 truncate mb-1"
+                            :title="doc.title || doc.file_name"
+                            x-text="doc.title || doc.file_name">
+                        </h3>
+
+                        <!-- Meta Info -->
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                            <span x-text="doc.file_type ? doc.file_type.toUpperCase() : ''"></span>
+                            <span x-show="doc.file_size_display"> · <span x-text="doc.file_size_display"></span></span>
+                            <span x-show="doc.file_modified_time"> · <span x-text="formatDate(doc.file_modified_time)"></span></span>
+                        </p>
+
+                        <!-- Tags -->
+                        <div class="card-tags flex flex-wrap gap-1 mb-3" x-show="doc.tags && doc.tags.length > 0" @click.stop>
+                            <template x-for="(tag, idx) in doc.tags.slice(0, 3)" :key="tag.uuid">
+                                <span @click="filterByTag(tag.uuid)"
+                                      class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium transition-colors cursor-pointer hover:opacity-80"
+                                      :style="`background-color: ${tag.color}20; color: ${tag.color}`"
+                                      x-text="tag.name"></span>
+                            </template>
+                            <span x-show="doc.tags.length > 3"
+                                  class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                                         bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+                                  x-text="'+' + (doc.tags.length - 3)">
+                            </span>
+                        </div>
+
+                        <!-- Snippet (search result highlight) -->
+                        <p x-show="doc.snippet"
+                           class="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-2"
+                           x-html="doc.snippet"></p>
+
+                        <!-- Action Buttons (grid mode - bottom) -->
+                        <div class="card-actions-bottom flex items-center justify-end gap-2 pt-2 border-t border-gray-100 dark:border-gray-700"
+                             @click.stop>
+                            <a :href="`/api/documents/${doc.uuid}/preview`"
+                               target="_blank"
+                               class="p-2 text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                               title="预览文档">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                </svg>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons (list mode - side) -->
+                    <div class="card-actions-side" @click.stop>
+                        <a :href="`/api/documents/${doc.uuid}/preview`"
+                           target="_blank"
+                           class="p-2 text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                           title="预览文档">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- 空状态提示 -->
+        <div x-show="$store.docs.items.length === 0 && !$store.docs.loading"
+             class="flex flex-col items-center justify-center py-12 text-gray-500 dark:text-gray-400">
+            <svg class="w-16 h-16 mb-4 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            <p class="text-lg font-medium">暂无文档</p>
+            <p class="text-sm mt-1">上传文件或导入目录以开始使用</p>
+        </div>
+    </div>
+
+    <!-- 加载状态 -->
+    <div x-show="$store.docs.loading" class="flex justify-center py-12">
+        <span class="spinner text-blue-600 w-8 h-8"></span>
+    </div>
+
+    <!-- 分页 -->
+    <div x-show="$store.docs.totalPages > 1 && !$store.docs.loading"
+         class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+        <!-- 总条数 -->
+        <div class="text-sm text-gray-500 dark:text-gray-400">
+            共 <span x-text="$store.docs.totalCount"></span> 条结果
+        </div>
+
+        <!-- 页码导航 - 桌面版 -->
+        <div class="hidden sm:flex items-center gap-1">
+            <!-- 首页 -->
+            <button @click="goToPage(1)"
+                    :disabled="$store.docs.currentPage === 1"
+                    :class="$store.docs.currentPage === 1
+                        ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-600 cursor-not-allowed'
+                        : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'"
+                    class="px-3 py-1.5 text-sm font-medium rounded-md border transition-colors">
+                首页
+            </button>
+
+            <!-- 上一页 -->
+            <button @click="goToPage($store.docs.currentPage - 1)"
+                    :disabled="$store.docs.currentPage === 1"
+                    :class="$store.docs.currentPage === 1
+                        ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-600 cursor-not-allowed'
+                        : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'"
+                    class="px-3 py-1.5 text-sm font-medium rounded-md border transition-colors">
+                ‹
+            </button>
+
+            <!-- 页码数字 -->
+            <template x-for="p in visiblePages" :key="p">
+                <div class="flex items-center">
+                    <!-- 省略号 -->
+                    <span x-show="showEllipsisBefore(p)" class="px-2 py-1.5 text-gray-400 dark:text-gray-500">…</span>
+
+                    <!-- 页码按钮 -->
+                    <button @click="goToPage(p)"
+                            :class="p === $store.docs.currentPage
+                                ? 'bg-blue-600 text-white border-blue-600'
+                                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'"
+                            class="px-3 py-1.5 text-sm font-medium rounded-md border transition-colors"
+                            x-text="p"></button>
+                </div>
+            </template>
+
+            <!-- 下一页 -->
+            <button @click="goToPage($store.docs.currentPage + 1)"
+                    :disabled="$store.docs.currentPage === $store.docs.totalPages"
+                    :class="$store.docs.currentPage === $store.docs.totalPages
+                        ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-600 cursor-not-allowed'
+                        : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'"
+                    class="px-3 py-1.5 text-sm font-medium rounded-md border transition-colors">
+                ›
+            </button>
+
+            <!-- 末页 -->
+            <button @click="goToPage($store.docs.totalPages)"
+                    :disabled="$store.docs.currentPage === $store.docs.totalPages"
+                    :class="$store.docs.currentPage === $store.docs.totalPages
+                        ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-600 cursor-not-allowed'
+                        : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'"
+                    class="px-3 py-1.5 text-sm font-medium rounded-md border transition-colors">
+                末页
+            </button>
+        </div>
+
+        <!-- 页码导航 - 移动端精简版 -->
+        <div class="flex sm:hidden items-center gap-2">
+            <button @click="goToPage($store.docs.currentPage - 1)"
+                    :disabled="$store.docs.currentPage === 1"
+                    :class="$store.docs.currentPage === 1
+                        ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-600 cursor-not-allowed'
+                        : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'"
+                    class="px-3 py-2 text-sm font-medium rounded-md border transition-colors">
+                上一页
+            </button>
+            <span class="px-3 py-2 text-sm text-gray-600 dark:text-gray-400">
+                <span x-text="$store.docs.currentPage"></span> / <span x-text="$store.docs.totalPages"></span>
+            </span>
+            <button @click="goToPage($store.docs.currentPage + 1)"
+                    :disabled="$store.docs.currentPage === $store.docs.totalPages"
+                    :class="$store.docs.currentPage === $store.docs.totalPages
+                        ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-600 cursor-not-allowed'
+                        : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'"
+                    class="px-3 py-2 text-sm font-medium rounded-md border transition-colors">
+                下一页
+            </button>
+        </div>
+    </div>
+
+    <!-- 文档详情模态框 -->
+    <div x-data="documentDetail"
+         x-show="$store.docs.currentDoc"
+         x-cloak
+         class="fixed inset-0 z-50 overflow-y-auto"
+         aria-labelledby="modal-title"
+         role="dialog"
+         aria-modal="true"
+         @keydown.escape.window="close()">
+        <!-- Background overlay -->
+        <div class="fixed inset-0 bg-gray-500/75 dark:bg-gray-900/80 transition-opacity"
+             @click.self="close()"
+             x-show="$store.docs.currentDoc"
+             x-transition:enter="ease-out duration-300"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="ease-in duration-200"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"></div>
+
+        <!-- Modal panel -->
+        <div class="flex min-h-full items-end sm:items-center justify-center p-0 sm:p-4">
+            <div class="relative w-full max-w-2xl transform overflow-hidden rounded-t-xl sm:rounded-lg
+                        bg-white dark:bg-gray-800 shadow-xl transition-all"
+                 x-show="$store.docs.currentDoc"
+                 x-transition:enter="ease-out duration-300"
+                 x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                 x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                 x-transition:leave="ease-in duration-200"
+                 x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+                 x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95">
+
+                <!-- Modal content -->
+                <div class="bg-white dark:bg-gray-800 rounded-t-xl sm:rounded-lg overflow-hidden max-h-[95vh] sm:max-h-[90vh] flex flex-col">
+                    <!-- Header with close button -->
+                    <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
+                        <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">文档详情</h2>
+                        <button @click="close()"
+                                class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="p-4 sm:p-6 overflow-y-auto">
+                        <!-- File Missing Warning -->
+                        <div x-show="$store.docs.currentDoc?.is_missing"
+                             class="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                            <div class="flex items-center gap-2 text-red-600 dark:text-red-400">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                </svg>
+                                <span class="font-medium">文件丢失</span>
+                            </div>
+                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">原始文件已不存在，无法下载或预览</p>
+                        </div>
+
+                        <!-- Thumbnail / Icon -->
+                        <div class="flex justify-center mb-6">
+                            <div class="w-48 h-64 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center overflow-hidden relative cursor-pointer group"
+                                 @click="triggerThumbnailUpload()">
+                                <!-- 缩略图或文件类型图标 -->
+                                <img :src="$store.docs.currentDoc?.thumbnail_path ? getThumbnailUrl($store.docs.currentDoc.uuid) : getFileIconUrl($store.docs.currentDoc?.file_type)"
+                                     :alt="$store.docs.currentDoc?.title || $store.docs.currentDoc?.file_name"
+                                     class="w-full h-full object-cover transition-opacity duration-200"
+                                     :class="thumbnailUploading ? 'opacity-50' : 'group-hover:opacity-60'"
+                                     loading="lazy"
+                                     @error="if($store.docs.currentDoc?.thumbnail_path) { $el.src = getFileIconUrl($store.docs.currentDoc.file_type); $el.onerror=null; }">
+
+                                <!-- Hover 上传提示 -->
+                                <div x-show="!thumbnailUploading"
+                                     class="absolute inset-0 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+                                    <svg class="w-8 h-8 text-gray-600 dark:text-gray-300 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                    </svg>
+                                    <span class="text-sm font-medium text-gray-600 dark:text-gray-300">更换缩略图</span>
+                                </div>
+
+                                <!-- 上传中 Loading -->
+                                <div x-show="thumbnailUploading"
+                                     class="absolute inset-0 flex flex-col items-center justify-center">
+                                    <svg class="animate-spin w-8 h-8 text-blue-600 mb-2" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span class="text-sm font-medium text-blue-600">上传中...</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tags -->
+                        <div class="mb-6">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">标签</span>
+                                <button @click="showTagInput = !showTagInput"
+                                        class="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
+                                    + 添加标签
+                                </button>
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                <template x-if="$store.docs.currentDoc?.tags && $store.docs.currentDoc.tags.length > 0">
+                                    <template x-for="tag in $store.docs.currentDoc.tags" :key="tag.uuid">
+                                        <span class="inline-flex items-center gap-1 group">
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium transition-colors"
+                                                  :style="`background-color: ${tag.color}20; color: ${tag.color}`"
+                                                  x-text="tag.name"></span>
+                                            <button @click="removeTag(tag.uuid)"
+                                                    class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity"
+                                                    title="移除标签">
+                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                                </svg>
+                                            </button>
+                                        </span>
+                                    </template>
+                                </template>
+                                <span x-show="!$store.docs.currentDoc?.tags || $store.docs.currentDoc.tags.length === 0"
+                                      class="text-sm text-gray-400 dark:text-gray-500">暂无标签</span>
+                            </div>
+
+                            <!-- Add Tag Input -->
+                            <div x-show="showTagInput" class="mt-2 flex gap-2">
+                                <input type="text"
+                                       x-model="newTagName"
+                                       @keydown.enter.prevent="addTag(newTagName)"
+                                       placeholder="输入标签名称"
+                                       class="flex-1 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg
+                                              bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100
+                                              focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <button @click="addTag(newTagName)"
+                                        class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
+                                    添加
+                                </button>
+                                <button @click="showTagInput = false; newTagName = ''"
+                                        class="px-3 py-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
+                                    取消
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- File info - All fields -->
+                        <div class="space-y-3 mb-6">
+                            <!-- Title (editable) -->
+                            <div class="flex items-start text-sm group">
+                                <span class="w-28 shrink-0 font-medium text-gray-500 dark:text-gray-400">标题</span>
+                                <div x-show="editingField !== 'title'" class="flex-1 flex items-center gap-1 min-w-0">
+                                    <span class="text-gray-900 dark:text-gray-100 break-all" x-text="$store.docs.currentDoc?.title || '未设置'"
+                                          :class="!$store.docs.currentDoc?.title && 'text-gray-400 dark:text-gray-500 italic'"></span>
+                                    <button @click="startEdit('title')" class="opacity-0 group-hover:opacity-100 p-0.5 text-gray-400 hover:text-blue-500 transition-opacity shrink-0" title="编辑">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                                    </button>
+                                </div>
+                                <div x-show="editingField === 'title'" class="flex-1 flex gap-2">
+                                    <input type="text" x-model="editValue"
+                                           @keydown.enter.prevent="saveEdit('title')" @keydown.escape.prevent="cancelEdit()"
+                                           class="flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <button @click="saveEdit('title')" :disabled="editSaving" class="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors">保存</button>
+                                    <button @click="cancelEdit()" class="px-2 py-1 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">取消</button>
+                                </div>
+                            </div>
+
+                            <!-- Authors (editable) -->
+                            <div class="flex items-start text-sm group">
+                                <span class="w-28 shrink-0 font-medium text-gray-500 dark:text-gray-400">作者</span>
+                                <div x-show="editingField !== 'authors'" class="flex-1 flex items-center gap-1 min-w-0">
+                                    <span class="text-gray-900 dark:text-gray-100 break-all" x-text="getDisplayValue('authors') || '未设置'"
+                                          :class="!getDisplayValue('authors') && 'text-gray-400 dark:text-gray-500 italic'"></span>
+                                    <button @click="startEdit('authors')" class="opacity-0 group-hover:opacity-100 p-0.5 text-gray-400 hover:text-blue-500 transition-opacity shrink-0" title="编辑">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                                    </button>
+                                </div>
+                                <div x-show="editingField === 'authors'" class="flex-1 flex gap-2">
+                                    <input type="text" x-model="editValue" placeholder="多个作者用逗号分隔"
+                                           @keydown.enter.prevent="saveEdit('authors')" @keydown.escape.prevent="cancelEdit()"
+                                           class="flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <button @click="saveEdit('authors')" :disabled="editSaving" class="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors">保存</button>
+                                    <button @click="cancelEdit()" class="px-2 py-1 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">取消</button>
+                                </div>
+                            </div>
+
+                            <!-- Summary (editable) -->
+                            <div class="flex items-start text-sm group">
+                                <span class="w-28 shrink-0 font-medium text-gray-500 dark:text-gray-400 pt-1">摘要</span>
+                                <div x-show="editingField !== 'summary'" class="flex-1 flex items-start gap-1 min-w-0">
+                                    <span class="text-gray-900 dark:text-gray-100 break-all whitespace-pre-wrap" x-text="$store.docs.currentDoc?.summary || '未设置'"
+                                          :class="!$store.docs.currentDoc?.summary && 'text-gray-400 dark:text-gray-500 italic'"></span>
+                                    <button @click="startEdit('summary')" class="opacity-0 group-hover:opacity-100 p-0.5 text-gray-400 hover:text-blue-500 transition-opacity shrink-0 mt-0.5" title="编辑">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                                    </button>
+                                </div>
+                                <div x-show="editingField === 'summary'" class="flex-1 space-y-2">
+                                    <textarea x-model="editValue" rows="3"
+                                              @keydown.escape.prevent="cancelEdit()"
+                                              class="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"></textarea>
+                                    <div class="flex gap-2">
+                                        <button @click="saveEdit('summary')" :disabled="editSaving" class="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors">保存</button>
+                                        <button @click="cancelEdit()" class="px-2 py-1 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">取消</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Meta Data (editable) -->
+                            <div class="flex items-start text-sm group">
+                                <span class="w-28 shrink-0 font-medium text-gray-500 dark:text-gray-400 pt-1">元数据</span>
+                                <div x-show="editingField !== 'meta_data'" class="flex-1 flex items-start gap-1 min-w-0">
+                                    <code x-show="getDisplayValue('meta_data')" class="text-xs text-gray-600 dark:text-gray-400 break-all font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded block whitespace-pre-wrap" x-text="getDisplayValue('meta_data')"></code>
+                                    <span x-show="!getDisplayValue('meta_data')" class="text-gray-400 dark:text-gray-500 italic">未设置</span>
+                                    <button @click="startEdit('meta_data')" class="opacity-0 group-hover:opacity-100 p-0.5 text-gray-400 hover:text-blue-500 transition-opacity shrink-0 mt-0.5" title="编辑">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                                    </button>
+                                </div>
+                                <div x-show="editingField === 'meta_data'" class="flex-1 space-y-2">
+                                    <textarea x-model="editValue" rows="5" placeholder='{"key": "value"}'
+                                              @keydown.escape.prevent="cancelEdit()"
+                                              class="w-full px-2 py-1 text-xs font-mono border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"></textarea>
+                                    <div class="flex gap-2">
+                                        <button @click="saveEdit('meta_data')" :disabled="editSaving" class="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors">保存</button>
+                                        <button @click="cancelEdit()" class="px-2 py-1 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">取消</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- File Path -->
+                            <div x-show="$store.docs.currentDoc?.file_path" class="flex items-start text-sm">
+                                <span class="w-28 shrink-0 font-medium text-gray-500 dark:text-gray-400">文件路径</span>
+                                <span class="flex-1 text-gray-400 dark:text-gray-500 break-all font-mono text-xs" x-text="$store.docs.currentDoc?.file_path"></span>
+                            </div>
+
+                            <!-- File Size -->
+                            <div class="flex items-center text-sm">
+                                <span class="w-28 shrink-0 font-medium text-gray-500 dark:text-gray-400">文件大小</span>
+                                <span class="text-gray-400 dark:text-gray-500" x-text="$store.docs.currentDoc?.file_size_display || '未知'"></span>
+                            </div>
+
+                            <!-- Import Method -->
+                            <div class="flex items-center text-sm">
+                                <span class="w-28 shrink-0 font-medium text-gray-500 dark:text-gray-400">导入方式</span>
+                                <span class="text-gray-400 dark:text-gray-500">
+                                    <span x-show="$store.docs.currentDoc?.import_method === 'upload'" class="inline-flex items-center gap-1">
+                                        <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                                        </svg>
+                                        上传
+                                    </span>
+                                    <span x-show="$store.docs.currentDoc?.import_method !== 'upload'" class="inline-flex items-center gap-1">
+                                        <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                                        </svg>
+                                        目录导入
+                                    </span>
+                                </span>
+                            </div>
+
+                            <!-- Imported Time -->
+                            <div class="flex items-center text-sm">
+                                <span class="w-28 shrink-0 font-medium text-gray-500 dark:text-gray-400">导入时间</span>
+                                <span class="text-gray-400 dark:text-gray-500" x-text="formatDate($store.docs.currentDoc?.imported_time)"></span>
+                            </div>
+
+                            <!-- Modified Time -->
+                            <div x-show="$store.docs.currentDoc?.file_modified_time" class="flex items-center text-sm">
+                                <span class="w-28 shrink-0 font-medium text-gray-500 dark:text-gray-400">修改时间</span>
+                                <span class="text-gray-400 dark:text-gray-500" x-text="formatDate($store.docs.currentDoc?.file_modified_time)"></span>
+                            </div>
+
+                            <!-- File Status -->
+                            <div class="flex items-center text-sm">
+                                <span class="w-28 shrink-0 font-medium text-gray-500 dark:text-gray-400">文件状态</span>
+                                <span x-show="$store.docs.currentDoc?.is_missing" class="inline-flex items-center gap-1 text-red-600 dark:text-red-400">
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                                    </svg>
+                                    文件丢失
+                                </span>
+                                <span x-show="!$store.docs.currentDoc?.is_missing" class="inline-flex items-center gap-1 text-green-600 dark:text-green-400">
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                    </svg>
+                                    正常
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Text excerpt -->
+                        <div x-show="$store.docs.currentDoc?.plain_text" class="mb-6">
+                            <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+                                文本内容预览
+                                <span x-show="$store.docs.currentDoc?.word_count" class="font-normal text-gray-400">（共 <span x-text="$store.docs.currentDoc?.word_count"></span> 字）</span>
+                            </h4>
+                            <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-sm text-gray-400 dark:text-gray-500 max-h-40 overflow-y-auto whitespace-pre-wrap" x-text="$store.docs.currentDoc?.plain_text?.slice(0, 500) + ($store.docs.currentDoc?.plain_text?.length > 500 ? '...' : '')"></div>
+                        </div>
+                    </div>
+
+                    <!-- Action buttons - Fixed at bottom -->
+                    <div class="flex flex-wrap gap-3 p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 shrink-0">
+                        <!-- Download button (single format) -->
+                        <template x-if="!$store.docs.currentDoc?.is_missing && downloadFormats.length <= 1">
+                            <a :href="downloadUrl()"
+                               class="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors shadow-sm">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                </svg>
+                                下载文件
+                            </a>
+                        </template>
+
+                        <!-- Download button (multiple formats - split button) -->
+                        <template x-if="!$store.docs.currentDoc?.is_missing && downloadFormats.length > 1">
+                            <div class="flex-1 flex">
+                                <a :href="downloadUrl(selectedDownloadFormat)"
+                                   class="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-l-lg transition-colors shadow-sm">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                    </svg>
+                                    下载 (<span x-text="selectedDownloadFormat.toUpperCase()"></span>)
+                                </a>
+                                <div class="relative">
+                                    <button @click="showDownloadDropdown = !showDownloadDropdown"
+                                            class="h-full px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-r-lg border-l border-blue-500 transition-colors flex items-center justify-center">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                        </svg>
+                                    </button>
+                                    <!-- Download dropdown menu -->
+                                    <div x-show="showDownloadDropdown"
+                                         @click.outside="showDownloadDropdown = false"
+                                         x-transition:enter="transition ease-out duration-100"
+                                         x-transition:enter-start="transform opacity-0 scale-95"
+                                         x-transition:enter-end="transform opacity-100 scale-100"
+                                         x-transition:leave="transition ease-in duration-75"
+                                         x-transition:leave-start="transform opacity-100 scale-100"
+                                         x-transition:leave-end="transform opacity-0 scale-95"
+                                         class="absolute right-0 bottom-full mb-2 w-40 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
+                                        <template x-for="(fmt, i) in downloadFormats" :key="fmt">
+                                            <a :href="downloadUrl(fmt)"
+                                               @click="selectedDownloadFormat = fmt; showDownloadDropdown = false"
+                                               class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                                <span x-text="fmt.toUpperCase()"></span>
+                                                <span x-show="i === 0" class="text-gray-400 dark:text-gray-500 text-xs ml-1">(原始)</span>
+                                            </a>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+
+                        <button x-show="$store.docs.currentDoc?.is_missing"
+                                disabled
+                                class="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 font-medium rounded-lg cursor-not-allowed">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                            </svg>
+                            文件丢失，无法下载
+                        </button>
+
+                        <!-- Preview button (single format) -->
+                        <template x-if="previewFormats.length <= 1">
+                            <a :href="previewUrl()"
+                               target="_blank"
+                               class="flex items-center justify-center gap-2 px-4 py-3 border border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 font-medium rounded-lg transition-colors">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                </svg>
+                                预览
+                            </a>
+                        </template>
+
+                        <!-- Preview button (multiple formats - split button) -->
+                        <template x-if="previewFormats.length > 1">
+                            <div class="flex">
+                                <a :href="previewUrl(selectedPreviewFormat)"
+                                   target="_blank"
+                                   class="flex items-center justify-center gap-2 px-4 py-3 border border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 font-medium rounded-l-lg transition-colors">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                    </svg>
+                                    预览 (<span x-text="selectedPreviewFormat.toUpperCase()"></span>)
+                                </a>
+                                <div class="relative">
+                                    <button @click="showPreviewDropdown = !showPreviewDropdown"
+                                            class="h-full px-3 border border-l-0 border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-r-lg transition-colors flex items-center justify-center">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                        </svg>
+                                    </button>
+                                    <!-- Preview dropdown menu -->
+                                    <div x-show="showPreviewDropdown"
+                                         @click.outside="showPreviewDropdown = false"
+                                         x-transition:enter="transition ease-out duration-100"
+                                         x-transition:enter-start="transform opacity-0 scale-95"
+                                         x-transition:enter-end="transform opacity-100 scale-100"
+                                         x-transition:leave="transition ease-in duration-75"
+                                         x-transition:leave-start="transform opacity-100 scale-100"
+                                         x-transition:leave-end="transform opacity-0 scale-95"
+                                         class="absolute right-0 bottom-full mb-2 w-40 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
+                                        <template x-for="(fmt, i) in previewFormats" :key="fmt">
+                                            <a :href="previewUrl(fmt)"
+                                               target="_blank"
+                                               @click="selectedPreviewFormat = fmt; showPreviewDropdown = false"
+                                               class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                                <span x-text="fmt.toUpperCase()"></span>
+                                                <span x-show="i === 0" class="text-gray-400 dark:text-gray-500 text-xs ml-1">(原始)</span>
+                                            </a>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- Delete button -->
+                        <button @click="deleteDocument()"
+                                class="flex items-center justify-center gap-2 px-4 py-3 border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 font-medium rounded-lg transition-colors">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                            删除
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 批量执行 Handler 选择模态框 -->
+    <div x-show="showBatchExecuteModal" x-cloak
+         class="fixed inset-0 z-50 overflow-y-auto"
+         @keydown.escape.window="closeBatchExecuteModal()">
+        <div class="fixed inset-0 bg-gray-500/75 dark:bg-gray-900/80 transition-opacity"
+             @click="closeBatchExecuteModal()"
+             x-show="showBatchExecuteModal"
+             x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+             x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
+        <div class="flex min-h-full items-end sm:items-center justify-center p-0 sm:p-4">
+            <div class="relative w-full max-w-2xl transform overflow-hidden rounded-t-xl sm:rounded-lg
+                        bg-white dark:bg-gray-800 shadow-xl transition-all"
+                 x-show="showBatchExecuteModal"
+                 x-transition:enter="ease-out duration-300"
+                 x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                 x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                 x-transition:leave="ease-in duration-200"
+                 x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+                 x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95">
+                <div class="max-h-[95vh] sm:max-h-[80vh] flex flex-col">
+                    <!-- 头部 -->
+                    <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
+                        <h3 class="font-semibold text-gray-900 dark:text-gray-100">选择任务处理器</h3>
+                        <button @click="closeBatchExecuteModal()" class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <!-- 内容 -->
+                    <div class="overflow-y-auto flex-1 px-5 py-4">
+                        <template x-for="group in groupedHandlers" :key="group.type">
+                            <div class="mb-4 last:mb-0">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <span class="px-2 py-0.5 text-xs font-semibold rounded"
+                                          :class="{
+                                              'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400': group.type === 'extract',
+                                              'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400': group.type === 'thumbnail',
+                                              'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400': group.type === 'summarize',
+                                          }"
+                                          x-text="group.label"></span>
+                                    <span class="text-xs text-gray-400 dark:text-gray-500" x-text="'(' + group.handlers.length + ')'">
+                                    </span>
+                                </div>
+                                <div class="space-y-2">
+                                    <template x-for="h in group.handlers" :key="h.plugin_name + '/' + h.handler_name">
+<div @click="toggleHandler(h.plugin_name, h.handler_name)"
+     class="flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all"
+     :class="isHandlerSelected(h.plugin_name, h.handler_name)
+         ? 'border-blue-300 dark:border-blue-600 bg-blue-50 dark:bg-blue-900/20'
+         : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/30'">
+    <input type="checkbox" :checked="isHandlerSelected(h.plugin_name, h.handler_name)"
+           class="mt-0.5 w-4 h-4 rounded border-gray-300 dark:border-gray-500 text-blue-600 focus:ring-blue-500 cursor-pointer"
+           @click.stop="toggleHandler(h.plugin_name, h.handler_name)">
+    <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 flex-wrap">
+            <span class="font-medium text-sm text-gray-900 dark:text-gray-100" x-text="h.handler_name"></span>
+            <span class="px-1.5 py-0.5 text-xs rounded bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400" x-text="h.plugin_name"></span>
+            <template x-if="h.source_types && h.source_types.length > 0">
+                <template x-for="st in h.source_types" :key="st">
+                    <span class="px-1.5 py-0.5 text-xs font-mono rounded bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400" x-text="st"></span>
+                </template>
+            </template>
+        </div>
+        <p x-show="h.description" class="text-xs text-gray-500 dark:text-gray-400 mt-1" x-text="h.description"></p>
+    </div>
+</div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                        <div x-show="availableHandlers.length === 0" class="py-8 text-center text-sm text-gray-400 dark:text-gray-500">
+                            暂无可用的处理器
+                        </div>
+                    </div>
+                    <!-- 底部 -->
+                    <div class="flex items-center justify-between px-5 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 shrink-0">
+                        <span class="text-sm text-gray-500 dark:text-gray-400">
+                            已选 <span x-text="selectedUuids.length" class="font-semibold text-gray-900 dark:text-gray-100"></span> 个文档，
+                            <span x-text="selectedHandlers.length" class="font-semibold text-gray-900 dark:text-gray-100"></span> 个处理器
+                        </span>
+                        <div class="flex items-center gap-2">
+                            <button @click="closeBatchExecuteModal()"
+                                    class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors">
+                                取消
+                            </button>
+                            <button @click="submitBatchExecute()"
+                                    :disabled="selectedHandlers.length === 0 || batchExecuteLoading"
+                                    :class="selectedHandlers.length === 0 || batchExecuteLoading
+                                        ? 'bg-blue-400 cursor-not-allowed'
+                                        : 'bg-blue-600 hover:bg-blue-700'"
+                                    class="px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors">
+                                <span x-show="!batchExecuteLoading">执行</span>
+                                <span x-show="batchExecuteLoading">执行中...</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
