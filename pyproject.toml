@@ -3,7 +3,7 @@ name = "folark"
 version = "0.1.0"
 description = "本地优先的个人文档管理工具"
 readme = "README.md"
-license = {text = "AGPL-3.0"}
+license = "AGPL-3.0"
 authors = [
     {name = "folark contributors"},
 ]
@@ -37,6 +37,9 @@ dev = [
     "pytest",
     "ruff",
 ]
+
+[tool.setuptools.packages.find]
+where = ["app"]
 
 [tool.ruff]
 line-length = 120
