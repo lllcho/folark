@@ -73,15 +73,10 @@ docker compose up -d
 
 服务启动后，访问 **http://localhost:8890** 即可使用。
 
-> **提示**：首次启动会自动构建镜像，耗时约 1-3 分钟。之后启动秒级完成。
-
-### 使用预构建镜像
-
-如果你不想本地构建，也可以直接拉取预构建镜像：
-
-```bash
-docker compose -f docker-compose.build.yml up -d
-```
+> **提示**：默认会从 ghcr.io 拉取预构建镜像。如果你想从本地 Dockerfile 构建（例如首次发布前），加上 `--build` 参数：
+> ```bash
+> docker compose up -d --build
+> ```
 
 ### 配置认证（可选）
 

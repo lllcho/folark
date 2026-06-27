@@ -1,5 +1,15 @@
+# ── folark Docker 部署 ──────────────────────────────────
+# 支持两种启动方式：
+#
+# 1. 拉取预构建镜像（推荐，需要先有 GitHub Release 发布到 ghcr.io）：
+#      docker compose up -d
+#
+# 2. 从本地 Dockerfile 构建（无需远程镜像，克隆后即可用）：
+#      docker compose up -d --build
+
 services:
   folark:
+    image: ghcr.io/lllcho/folark:latest
     build:
       context: .
       dockerfile: Dockerfile
