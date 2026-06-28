@@ -447,9 +447,28 @@ async def on_shutdown() -> None:
 
 
 # 模板配置
+# JS 静态资源版本号（基于文件修改时间，用于缓存刷新）
+def _get_js_version() -> str:
+    """收集所有 JS 文件的 mtime 作为版本标识。"""
+    static_js = PROJECT_ROOT / "static" / "js"
+    if not static_js.is_dir():
+        return "1"
+    versions = []
+    for f in sorted(static_js.iterdir()):
+        if f.suffix == ".js" and f.is_file():
+            versions.append(str(int(f.stat().st_mtime)))
+    return hashlib.md5("".join(versions).encode()).hexdigest()[:8]
+
+
+def _init_jinja_engine(engine: JinjaTemplateEngine) -> None:
+    """向 Jinja2 全局上下文注入 static_version。"""
+    engine.engine.globals["static_version"] = _get_js_version()
+
+
 template_config = TemplateConfig(
     directory=BASE_DIR / "templates",
     engine=JinjaTemplateEngine,
+    engine_callback=_init_jinja_engine,
 )
 
 # 静态文件路由（项目根目录下的 static 目录）

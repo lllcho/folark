@@ -7,6 +7,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}folark{% endblock %}</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     
     <!-- Tailwind CSS Play CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -35,16 +36,16 @@
     </script>
 
     <!-- App CSS -->
-    <link rel="stylesheet" href="/static/css/app.css">
+    <link rel="stylesheet" href="/static/css/app.css?v={{ static_version }}">
 
     <!-- App JS (must load before Alpine.js for alpine:init event) -->
-    <script src="/static/js/utils.js"></script>
-    <script src="/static/js/store.js"></script>
-    <script src="/static/js/document-app.js"></script>
-    <script src="/static/js/upload.js"></script>
-    <script src="/static/js/document-detail.js"></script>
-    <script src="/static/js/directory-import.js"></script>
-    <script src="/static/js/settings-app.js"></script>
+    <script src="/static/js/utils.js?v={{ static_version }}"></script>
+    <script src="/static/js/store.js?v={{ static_version }}"></script>
+    <script src="/static/js/document-app.js?v={{ static_version }}"></script>
+    <script src="/static/js/upload.js?v={{ static_version }}"></script>
+    <script src="/static/js/document-detail.js?v={{ static_version }}"></script>
+    <script src="/static/js/directory-import.js?v={{ static_version }}"></script>
+    <script src="/static/js/settings-app.js?v={{ static_version }}"></script>
 
     <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
