@@ -196,8 +196,9 @@ async def upsert_document_by_path(
             """
             INSERT INTO documents (
                 uuid, file_name, file_path, source_dir, import_method,
-                file_type, file_size, file_hash, file_modified_time
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                file_type, file_size, file_hash, file_modified_time,
+                title
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 uuid,
@@ -209,6 +210,7 @@ async def upsert_document_by_path(
                 file_size,
                 file_hash,
                 file_modified_time,
+                Path(file_name).stem,
             ),
         ) as cursor:
             document_id = cursor.lastrowid

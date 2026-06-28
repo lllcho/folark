@@ -60,6 +60,20 @@ function formatDate(dateStr) {
 }
 
 /**
+ * 获取显示标题：优先用 title，否则用 file_name 去掉扩展名
+ * @param {string} title - 文档标题
+ * @param {string} fileName - 文件名
+ * @returns {string}
+ */
+function getDisplayTitle(title, fileName) {
+    if (title) return title;
+    if (!fileName) return '';
+    // 去掉最后一个点及之后的内容
+    const dot = fileName.lastIndexOf('.');
+    return dot > 0 ? fileName.slice(0, dot) : fileName;
+}
+
+/**
  * 获取文件图标 URL
  * @param {string} fileType - 文件类型
  * @returns {string} 图标 URL
@@ -165,3 +179,4 @@ window.formatDate = formatDate;
 window.getFileIconUrl = getFileIconUrl;
 window.getThumbnailUrl = getThumbnailUrl;
 window.showToast = showToast;
+window.getDisplayTitle = getDisplayTitle;

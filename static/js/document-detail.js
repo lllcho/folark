@@ -276,8 +276,9 @@ document.addEventListener('alpine:init', () => {
                     try { return JSON.stringify(JSON.parse(val), null, 2); } catch { return val; }
                 }
                 return JSON.stringify(val, null, 2);
-            }
-            return doc[field] || '';
+            }            if (field === 'title') {
+                return getDisplayTitle(doc.title, doc.file_name);
+            }            return doc[field] || '';
         },
 
         // 获取字段显示值（用于展示态）
