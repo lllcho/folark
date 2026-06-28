@@ -330,8 +330,8 @@
                     <div class="card-body min-w-0">
                         <!-- Title -->
                         <h3 class="font-medium text-gray-900 dark:text-gray-100 truncate mb-1"
-                            :title="doc.title || doc.file_name"
-                            x-text="getDisplayTitle(doc.title, doc.file_name)">
+                            :title="doc.file_name"
+                            x-text="doc.file_name">
                         </h3>
 
                         <!-- Meta Info -->
@@ -653,8 +653,8 @@
                                 <span class="w-28 shrink-0 font-medium text-gray-500 dark:text-gray-400">标题</span>
                                 <div x-show="editingField !== 'title'" class="flex-1 flex items-center gap-1 min-w-0">
                                     <span class="text-gray-900 dark:text-gray-100 break-all"
-                                          x-text="getDisplayTitle($store.docs.currentDoc?.title, $store.docs.currentDoc?.file_name) || '未设置'"
-                                          :class="!getDisplayTitle($store.docs.currentDoc?.title, $store.docs.currentDoc?.file_name) && 'text-gray-400 dark:text-gray-500 italic'"></span>
+                                          x-text="$store.docs.currentDoc?.title || '未设置'"
+                                          :class="!$store.docs.currentDoc?.title && 'text-gray-400 dark:text-gray-500 italic'"></span>
                                     <button @click="startEdit('title')" class="opacity-0 group-hover:opacity-100 p-0.5 text-gray-400 hover:text-blue-500 transition-opacity shrink-0" title="编辑">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
                                     </button>

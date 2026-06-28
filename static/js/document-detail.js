@@ -276,8 +276,9 @@ document.addEventListener('alpine:init', () => {
                     try { return JSON.stringify(JSON.parse(val), null, 2); } catch { return val; }
                 }
                 return JSON.stringify(val, null, 2);
-            }            if (field === 'title') {
-                return getDisplayTitle(doc.title, doc.file_name);
+            }
+            if (field === 'title') {
+                return doc.title || '';
             }            return doc[field] || '';
         },
 
