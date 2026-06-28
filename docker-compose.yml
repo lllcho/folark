@@ -21,6 +21,8 @@ services:
       # 挂载要管理的文档路径
       # - your_docs_path:/docs
     environment:
+      # 时区
+      TZ: Asia/Shanghai
       # 登录密码（留空则不启用认证）
       # AUTH_PASSWORD: your_password_here
       # 日志级别: DEBUG / INFO / WARNING / ERROR
